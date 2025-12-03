@@ -1,26 +1,30 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Configuración del Tema para Tailwind v4 */
+@theme {
+  /* Colores Personalizados */
+  --color-negrito-bg: #0a0a0a;       /* Fondo casi negro, elegante */
+  --color-negrito-card: #171717;     /* Fondo para tarjetas */
+  --color-negrito-text: #ededed;     /* Texto blanco suave */
+  
+  --color-festivo-gold: #FFD700;     /* Dorado principal */
+  --color-festivo-pink: #E91E63;     /* Tradición */
+  --color-festivo-purple: #9C27B0;   /* Devoción */
+  --color-festivo-green: #00C853;    /* Festival */
+  --color-festivo-cyan: #00B0FF;     /* Sigueteo */
+  --color-festivo-orange: #FF6D00;   /* Personajes */
+  --color-festivo-red: #D50000;      /* Bordadurías/Acción */
+
+  /* Fuentes (puedes cambiarlas luego importándolas en layout) */
+  --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Estilos base */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-negrito-bg);
+  color: var(--color-negrito-text);
+  /* Un patrón sutil de fondo para darle textura */
+  background-image: radial-gradient(rgba(255, 215, 0, 0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
 }

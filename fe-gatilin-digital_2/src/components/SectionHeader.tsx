@@ -1,7 +1,7 @@
 interface SectionHeaderProps {
   title: string;
   description: string;
-  borderColor: string; // Ejemplo: "border-festivo-red"
+  borderColor: string; 
 }
 
 export default function SectionHeader({ title, description, borderColor }: SectionHeaderProps) {

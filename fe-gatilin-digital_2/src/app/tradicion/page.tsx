@@ -1,7 +1,7 @@
 import BackButton from "@/components/BackButton";
 import SectionHeader from "@/components/SectionHeader";
 
-export default function BordaduriasPage() {
+export default function TradicionPage() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       

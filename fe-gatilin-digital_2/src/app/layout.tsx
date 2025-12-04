@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import FloatingReportButton from "@/components/FloatingReportButton";
 
 export const metadata: Metadata = {
   title: "Gatilín Digital - Negritos de Huánuco",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen pt-16"> 
         {/* pt-16 es para compensar el Navbar fijo */}
         <Navbar />
+        <FloatingReportButton />
         <main className="max-w-5xl mx-auto px-4 py-8">
           {children}
         </main>

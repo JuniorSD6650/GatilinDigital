@@ -1,3 +1,5 @@
 *.sql
 /TIKTOK FILTRO/
 /fe-gatilin-digital/
+*.af
+*.af~lock~

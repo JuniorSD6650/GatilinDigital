@@ -1,37 +1,44 @@
-import Link from 'next/link';
-
 interface SectionCardProps {
   name: string;
   href: string;
-  color: string; // Clase de Tailwind para el color de fondo (ej: 'bg-festivo-pink')
-  // border: string; // Opcional si quisieras usarlo para bordes específicos
+  imageSrc: string;
 }
 
-export default function SectionCard({ name, href, color }: SectionCardProps) {
+export default function SectionCard({ name, href, imageSrc }: SectionCardProps) {
   return (
-    <Link
+    <a 
       href={href}
-      className={`
-        group relative p-8 rounded-2xl bg-negrito-card border border-white/10 
-        hover:border-festivo-gold/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-festivo-gold/10
-        flex flex-col items-center justify-center gap-4 text-center overflow-hidden
-      `}
+      className="group relative flex items-center justify-center focus:outline-none"
     >
-      {/* Efecto de brillo en el borde superior al hacer hover (Usa el color prop) */}
-      <div className={`absolute top-0 left-0 w-full h-1 ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-      
-      {/* Círculo decorativo de fondo (opcional, para darle más vida) */}
-      <div className={`absolute w-24 h-24 rounded-full ${color} opacity-0 group-hover:opacity-5 blur-2xl transition-opacity duration-500`} />
+      {/* 1. Contenedor de la Imagen del Pañuelo (SVG) 
+        Efectos añadidos:
+        - duration-500 ease-out: Movimiento suave y fluido.
+        - group-hover:-translate-y-2: El pañuelo "flota" hacia arriba.
+        - group-hover:drop-shadow-[...]: Crea un resplandor dorado alrededor del SVG.
+        - group-hover:brightness-110: La imagen se vuelve un poco más brillante.
+      */}
+      <div className="relative w-64 h-64 sm:w-72 sm:h-72 transition-all duration-500 ease-out transform group-hover:-translate-y-2 group-hover:scale-105">
+        <img
+          src={imageSrc}
+          alt={`Ir a sección ${name}`}
+          // En Next.js usarías <Image fill ... />. Aquí usamos absolute + w-full/h-full para simularlo.
+          className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transition-all duration-500 group-hover:drop-shadow-[0_0_25px_rgba(250,204,21,0.6)] group-hover:brightness-110"
+        />
+      </div>
 
-      {/* Título */}
-      <h2 className="text-2xl font-display font-bold text-white group-hover:text-festivo-gold transition-colors z-10">
-        {name}
-      </h2>
-      
-      <p className="text-sm text-gray-500 group-hover:text-gray-300 flex items-center gap-1 transition-colors z-10">
-        Explorar sección 
-        <span className="group-hover:translate-x-1 transition-transform duration-300">&rarr;</span>
-      </p>
-    </Link>
+      {/* 2. El Texto Superpuesto 
+        - Centrado absoluto (inset-0 flex items-center justify-center).
+        - Eliminado el padding-bottom (pb-6) para un centrado real.
+        - Efecto scale-110: El texto crece al hacer hover.
+      */}
+      <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+        <h2 
+          className="text-2xl sm:text-3xl font-display font-bold text-white tracking-wide transition-all duration-300 group-hover:text-yellow-100 group-hover:scale-110"
+          style={{ textShadow: '0px 4px 10px rgba(0,0,0,0.9)' }} // Sombra fuerte para asegurar lectura sobre el pañuelo
+        >
+          {name}
+        </h2>
+      </div>
+    </a>
   );
 }

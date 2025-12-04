@@ -15,10 +15,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased min-h-screen pt-16"> 
-        {/* pt-16 es para compensar el Navbar fijo */}
+      <head>
+        {/* Cargamos la fuente Gabriela desde Google Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Gabriela&display=swap" 
+          rel="stylesheet" 
+        />
+      </head>
+      
+      {/* Nota: Ya no es necesario poner style={{ fontFamily... }} aquí 
+        porque tu globals.css ya aplica la fuente al 'body' automáticamente.
+      */}
+      <body className="antialiased min-h-screen pt-16 bg-neutral-950 text-white"> 
+        {/* pt-16 compensa la altura del Navbar fijo */}
         <Navbar />
+        
+        {/* Botón flotante de reporte (Matraca) */}
         <FloatingReportButton />
+        
         <main className="max-w-5xl mx-auto px-4 py-8">
           {children}
         </main>

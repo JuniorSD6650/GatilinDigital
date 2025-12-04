@@ -3,28 +3,35 @@
 /* Configuración del Tema para Tailwind v4 */
 @theme {
   /* Colores Personalizados */
-  --color-negrito-bg: #0a0a0a;       /* Fondo casi negro, elegante */
-  --color-negrito-card: #171717;     /* Fondo para tarjetas */
-  --color-negrito-text: #ededed;     /* Texto blanco suave */
+  --color-negrito-bg: #0a0a0a;
+  --color-negrito-card: #171717;
+  --color-negrito-text: #ededed;
   
-  --color-festivo-gold: #FFD700;     /* Dorado principal */
-  --color-festivo-pink: #E91E63;     /* Tradición */
-  --color-festivo-purple: #9C27B0;   /* Devoción */
-  --color-festivo-green: #00C853;    /* Festival */
-  --color-festivo-cyan: #00B0FF;     /* Sigueteo */
-  --color-festivo-orange: #FF6D00;   /* Personajes */
-  --color-festivo-red: #D50000;      /* Bordadurías/Acción */
+  --color-festivo-gold: #FFD700;
+  --color-festivo-pink: #E91E63;
+  --color-festivo-purple: #9C27B0;
+  --color-festivo-green: #00C853;
+  --color-festivo-cyan: #00B0FF;
+  --color-festivo-orange: #FF6D00;
+  --color-festivo-red: #D50000;
 
-  /* Fuentes (puedes cambiarlas luego importándolas en layout) */
-  --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-body: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  /* * FUENTES TIPOGRÁFICAS
+   * Aquí conectamos la fuente "Gabriela" que cargamos en el layout.
+   * 'serif' es el fallback por si falla la carga.
+   */
+  --font-display: "Gabriela", serif; 
+  --font-body: "Gabriela", serif; /* Usamos Gabriela también para el cuerpo si la quieres en toda la página */
 }
 
 /* Estilos base */
 body {
   background-color: var(--color-negrito-bg);
   color: var(--color-negrito-text);
-  /* Un patrón sutil de fondo para darle textura */
+  
+  /* Aplicamos la fuente base definida arriba */
+  font-family: var(--font-body);
+
+  /* Patrón de fondo sutil */
   background-image: radial-gradient(rgba(255, 215, 0, 0.03) 1px, transparent 1px);
   background-size: 30px 30px;
 }

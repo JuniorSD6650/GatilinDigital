@@ -1,7 +1,7 @@
 exports.up = function(knex) {
     return knex.schema.createTable('bordadurias', function(table) {
       table.increments('id').primary().unsigned();
-      table.string('ruc', 20).notNullable();
+      table.string('ruc', 11).notNullable();
       table.string('razon_social', 255).notNullable();
       table.text('descripcion').nullable();
       table.string('direccion', 255).notNullable();

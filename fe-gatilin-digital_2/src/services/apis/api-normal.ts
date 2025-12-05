@@ -1,7 +1,6 @@
 import { API_URL } from '../api';
 
 // --- SECCIÓN FESTIVAL (Organizaciones) ---
-
 export interface Organizacion {
   id: number;
   nombre: string;
@@ -12,26 +11,18 @@ export interface Organizacion {
 export const getOrganizaciones = async (): Promise<Organizacion[]> => {
   try {
     const response = await fetch(`${API_URL}/organizacion`, {
-      cache: 'no-store', // Datos frescos siempre (Server Components / SSR)
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
     });
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error("Error obteniendo organizaciones:", error);
-    // Retornamos array vacío para que la UI no se rompa si falla la API
     return []; 
   }
 };
 
 // --- SECCIÓN SIGUETEO (Cofradías) ---
-
 export interface CofradiaResumen {
   id: number;
   nickname_cofradia: string;
@@ -51,7 +42,7 @@ export interface CofradiaDetalle {
   color: string;
   descripcion: string;
   ubicacion_link: string;
-  ubicacion_link_actualizado: string; // Formato esperado: "DD/MM/YYYY HH:mm:ss"
+  ubicacion_link_actualizado: string;
   organizacion_id: number;
 }
 
@@ -61,11 +52,7 @@ export const getCofradiaList = async (): Promise<CofradiaResumen[]> => {
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
     });
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error("Error obteniendo lista de cofradías:", error);
@@ -79,14 +66,56 @@ export const getCofradiaDetail = async (id: number): Promise<CofradiaDetalle | n
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
     });
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error(`Error obteniendo detalle de cofradía ${id}:`, error);
+    return null;
+  }
+};
+
+// --- SECCIÓN BORDADURÍAS (Nuevo) ---
+
+export interface BordaduriaResumen {
+  id: number;
+  razon_social: string;
+}
+
+export interface BordaduriaDetalle {
+  id: number;
+  ruc: string;
+  razon_social: string;
+  descripcion: string;
+  direccion: string;
+  web_fb: string;
+  representante: string;
+  celular: string;
+}
+
+export const getBordaduriasList = async (): Promise<BordaduriaResumen[]> => {
+  try {
+    const response = await fetch(`${API_URL}/bordadurias/list`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo lista de bordadurías:", error);
+    return [];
+  }
+};
+
+export const getBordaduriaDetail = async (id: number): Promise<BordaduriaDetalle | null> => {
+  try {
+    const response = await fetch(`${API_URL}/bordadurias/${id}`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error obteniendo detalle de bordaduría ${id}:`, error);
     return null;
   }
 };

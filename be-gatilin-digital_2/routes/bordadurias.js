@@ -42,6 +42,21 @@ router.get('/template', async (req, res) => {
   }
 });
 
+router.get('/list', async (req, res) => {
+  try {
+    const cofradias = await knex('bordadurias')
+      .select('id', 'razon_social')
+      .orderBy('id', 'asc');
+
+    res.status(200).json(cofradias);
+  } catch (err) {
+    res.status(500).json({
+      error: 'Error obteniendo la lista de bordadurías',
+      details: err.message || err,
+    });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const bordadurias = await knex('bordadurias')

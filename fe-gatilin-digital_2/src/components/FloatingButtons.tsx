@@ -1,7 +1,21 @@
 'use client';
 
 import { useState, useRef, useEffect, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
-import Link from 'next/link';
+
+// ============================================================================
+// ⚠️ INSTRUCCIONES PARA TU PROYECTO LOCAL:
+// 1. Descomenta la línea de abajo:
+// import Link from 'next/link';
+// 2. Borra o comenta el componente "Link" simulado (MOCK) de abajo.
+// ============================================================================
+
+// --- MOCK PARA VISTA PREVIA (BORRAR O COMENTAR EN LOCAL) ---
+const Link = ({ href, onClick, children, className }: any) => (
+  <a href={href} onClick={onClick} className={className} draggable={false}>
+    {children}
+  </a>
+);
+// -----------------------------------------------------------
 
 type ButtonId = 'register' | 'report';
 
@@ -16,14 +30,12 @@ export default function FloatingButtons() {
   });
 
   // Estado para controlar la visibilidad del botón de registro
-  // Iniciamos en 'false' para evitar parpadeos. Solo se muestra si comprobamos que NO se ha cerrado.
   const [showRegister, setShowRegister] = useState(false);
 
-  // Efecto para comprobar si se debe mostrar
+  // Efecto para comprobar si se debe mostrar (Persistencia de Sesión)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isHidden = sessionStorage.getItem('hide_register_btn');
-      // Si NO existe la marca de oculto, entonces lo mostramos
       if (isHidden !== 'true') {
         setShowRegister(true);
       }
@@ -133,7 +145,6 @@ export default function FloatingButtons() {
     e.preventDefault();
     e.stopPropagation();
     setShowRegister(false);
-    // Guardamos en sessionStorage para que persista durante la navegación
     if (typeof window !== 'undefined') {
         sessionStorage.setItem('hide_register_btn', 'true');
     }
@@ -231,12 +242,12 @@ export default function FloatingButtons() {
             onTouchStart={(e) => onTouchStart(e, 'register')}
         >
             <div className="relative group/closeable">
-                {/* Botón de CERRAR (X) */}
+                {/* Botón de CERRAR (X) - SIEMPRE VISIBLE */}
                 <button
                     onClick={handleCloseRegister}
                     onMouseDown={(e) => e.stopPropagation()} 
                     onTouchStart={(e) => e.stopPropagation()}
-                    className="absolute -top-3 -right-2 z-50 bg-white text-black border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:bg-gray-100 hover:scale-110 active:scale-95 transition-all opacity-0 group-hover/closeable:opacity-100 duration-300 cursor-pointer"
+                    className="absolute -top-3 -right-2 z-50 bg-white text-black border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:bg-gray-100 hover:scale-110 active:scale-95 transition-all cursor-pointer"
                     title="Cerrar"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

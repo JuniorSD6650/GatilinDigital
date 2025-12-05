@@ -74,8 +74,7 @@ export const getCofradiaDetail = async (id: number): Promise<CofradiaDetalle | n
   }
 };
 
-// --- SECCIÓN BORDADURÍAS (Nuevo) ---
-
+// --- SECCIÓN BORDADURÍAS ---
 export interface BordaduriaResumen {
   id: number;
   razon_social: string;
@@ -117,5 +116,28 @@ export const getBordaduriaDetail = async (id: number): Promise<BordaduriaDetalle
   } catch (error) {
     console.error(`Error obteniendo detalle de bordaduría ${id}:`, error);
     return null;
+  }
+};
+
+// --- SECCIÓN REPORTES (Nuevo) ---
+
+export const createReporte = async (formData: FormData): Promise<{ message: string; id: number }> => {
+  try {
+    const response = await fetch(`${API_URL}/reportes`, {
+      method: 'POST',
+      body: formData, 
+      // IMPORTANTE: No establecer 'Content-Type': 'application/json' 
+      // cuando enviamos FormData (para archivos), el navegador lo hace automático.
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.details || errorData.error || `Error HTTP: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creando reporte:", error);
+    throw error;
   }
 };

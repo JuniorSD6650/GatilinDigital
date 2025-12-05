@@ -105,13 +105,47 @@ export default function DevocionPage() {
 
           {/* Cita Bíblica o Frase */}
           <blockquote className="relative p-4 text-lg italic text-white/80 border-t border-b border-white/10 text-center font-display">
-            <span className="absolute top-0 left-0 text-4xl text-festivo-purple/20 -translate-y-2">“</span>
+            <span className="absolute top-0 left-0 text-4xl text-festivo-purple/20 -translate-y-2">"</span>
             Gloria a Dios en las alturas y en la tierra paz a los hombres de buena voluntad.
-            <span className="absolute bottom-0 right-0 text-4xl text-festivo-purple/20 translate-y-4">”</span>
+            <span className="absolute bottom-0 right-0 text-4xl text-festivo-purple/20 translate-y-4">"</span>
           </blockquote>
 
         </div>
 
+      </div>
+
+      {/* 4. Sección de Reflexión - Padre Oswaldo */}
+      <div className="max-w-4xl mx-auto px-4 mt-20 mb-16">
+        <div className="relative bg-gradient-to-br from-negrito-card/60 to-purple-950/20 border border-festivo-purple/40 p-8 md:p-12 rounded-3xl shadow-[0_0_40px_rgba(123,31,162,0.2)] backdrop-blur-md">
+          
+          {/* Decoración superior */}
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-negrito-black px-6 py-2 border border-festivo-purple rounded-full">
+            <span className="text-festivo-gold text-sm uppercase tracking-widest font-display">Reflexión</span>
+          </div>
+
+          {/* Contenido */}
+          <div className="space-y-6 text-gray-200 leading-relaxed">
+            <p className="text-lg md:text-xl">
+              La devoción de los Negritos al Niño Jesús se expresa en el compromiso que asumen los mayordomos cuando se encargan de realizar la festividad y también la devoción de los danzantes de Negritos quienes se sacrifican en muchas cosas para poder cumplir con el Niño.
+            </p>
+            <p className="text-lg md:text-xl">
+              Además de realizar gastos en la elaboración de sus trajes de danzantes, también sacrifican tiempo y ocupaciones del día a día, pero lo hacen de buena voluntad porque ellos saben que todo lo que den al Niño lo recibirán multiplicado en bendiciones.
+            </p>
+            <p className="text-lg md:text-xl">
+              Ese es el cariño que tienen los pobladores de la ciudad de Huánuco por el Niño Manuelito y la razón por la cual esta festividad es única en el mundo y ha sido declarada Patrimonio Cultural Inmaterial de la Humanidad por la UNESCO.
+            </p>
+
+            {/* Autor */}
+            <div className="mt-10 pt-6 border-t border-festivo-purple/30 text-right">
+              <p className="text-festivo-gold font-display text-lg tracking-wide">
+                — Padre Oswaldo Rodríguez Martínez
+              </p>
+            </div>
+          </div>
+
+          {/* Decoración inferior */}
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-64 h-1 bg-gradient-to-r from-transparent via-festivo-purple to-transparent"></div>
+        </div>
       </div>
     </div>
   );

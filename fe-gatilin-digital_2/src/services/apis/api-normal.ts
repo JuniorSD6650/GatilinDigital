@@ -119,7 +119,7 @@ export const getBordaduriaDetail = async (id: number): Promise<BordaduriaDetalle
   }
 };
 
-// --- SECCIÓN REPORTES (Nuevo) ---
+// --- SECCIÓN REPORTES ---
 
 export const createReporte = async (formData: FormData): Promise<{ message: string; id: number }> => {
   try {
@@ -138,6 +138,39 @@ export const createReporte = async (formData: FormData): Promise<{ message: stri
     return await response.json();
   } catch (error) {
     console.error("Error creando reporte:", error);
+    throw error;
+  }
+};
+
+// --- SECCIÓN PARTICIPANTES (Registro) ---
+export interface ParticipantePayload {
+  nombre: string;
+  dni: string;
+  email: string;
+  telefono: string;
+  fecha_registro: string; // ISO Date
+  estado: string; // 'pendiente', 'contactado', etc.
+  comentario: string;
+}
+
+export const createParticipante = async (data: ParticipantePayload) => {
+  try {
+    const response = await fetch(`${API_URL}/participantes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.details || errorData.error || `Error HTTP: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error registrando participante:", error);
     throw error;
   }
 };

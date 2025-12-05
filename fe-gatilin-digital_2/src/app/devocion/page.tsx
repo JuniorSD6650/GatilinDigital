@@ -30,11 +30,24 @@ export default function DevocionPage() {
           </h3>
 
           <p className="text-lg md:text-xl text-gray-200 font-serif italic leading-loose">
-            "Oh Divino Niño Jesús, dueño de nuestros corazones,<br className="hidden md:block" />
-            te ofrecemos nuestra danza como plegaria y nuestra fe como estandarte.<br className="hidden md:block" />
-            Bendice a este pueblo que te adora y concédenos la gracia<br className="hidden md:block" />
-            de vivir siempre en tu amor y libertad.<br />
-            <span className="font-bold text-white not-italic mt-4 block text-base tracking-widest">AMÉN</span>"
+            Bendito Niño Jesús,<br className="hidden md:block" />
+            vengo a ti, para adorarte,<br className="hidden md:block" />
+            porque has nacido para salvarme.<br className="hidden md:block" />
+            <br />
+            Te traigo mis penas y mis alegrías;<br className="hidden md:block" />
+            mis frustraciones y mis esperanzas,<br className="hidden md:block" />
+            y en esta danza te entrego<br className="hidden md:block" />
+            mi corazón y mi esfuerzo,<br className="hidden md:block" />
+            como muestra de mi amor por ti<br className="hidden md:block" />
+            Niño Bendito.<br className="hidden md:block" />
+            <br />
+            Me inclino ante tu imagen y te suplico<br className="hidden md:block" />
+            que protejas y bendigas a mi Familia,<br className="hidden md:block" />
+            a nuestros trabajos y nuestros anhelos,<br className="hidden md:block" />
+            pero sobre todo no permitas<br className="hidden md:block" />
+            que me aleje de ti.<br className="hidden md:block" />
+            <br />
+            <span className="font-bold text-white not-italic mt-4 block text-base tracking-widest">AMÉN</span>
           </p>
 
           {/* Adorno inferior */}

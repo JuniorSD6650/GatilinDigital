@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import FloatingReportButton from "@/components/FloatingReportButton";
+import FloatingReportButton from "@/components/FloatingButtons";
 
 export const metadata: Metadata = {
   title: "Gatilín Digital - Negritos de Huánuco",

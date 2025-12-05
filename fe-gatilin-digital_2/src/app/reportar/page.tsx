@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import BackButton from "@/components/BackButton";
 import SectionHeader from "@/components/SectionHeader";
 import { createReporte } from '@/services/apis/api-normal';
@@ -12,18 +12,88 @@ export default function ReportPage() {
     type: 'incidente',
     description: '',
   });
+  
+  // --- ESTADOS PARA FOTO Y CÁMARA ---
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Refs para manejo de archivos y video
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Manejo de cambios en los inputs de texto
+  // Limpieza al desmontar componente: asegurar que la cámara se apague
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  // --- HANDLERS DE FORMULARIO ---
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  // Manejo de selección de archivo con previsualización
+  // --- LÓGICA DE CÁMARA ---
+  const startCamera = async () => {
+    try {
+      setIsCameraOpen(true);
+      // Solicitamos acceso a la cámara trasera (environment)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      streamRef.current = stream;
+      
+      // Esperamos un momento para asegurar que el elemento video esté montado
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      // Fallback amigable si falla (ej. permisos denegados o sitio no HTTPS)
+      alert("No se pudo acceder a la cámara. Asegúrate de dar permisos y estar en un sitio seguro (HTTPS).");
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      // Crear un canvas temporal para capturar el frame actual del video
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        // Convertir el canvas a un archivo JPG
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], "foto-camara.jpg", { type: "image/jpeg" });
+            setPhoto(file);
+            setPreviewUrl(URL.createObjectURL(file));
+            stopCamera(); // Cerramos la cámara automáticamente al capturar
+          }
+        }, 'image/jpeg', 0.8); // Calidad JPG 80%
+      }
+    }
+  };
+
+  // --- LÓGICA DE ARCHIVOS (GALERÍA) ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -32,45 +102,40 @@ export default function ReportPage() {
     }
   };
 
-  // Limpiar la foto seleccionada
   const handleRemovePhoto = () => {
     setPhoto(null);
     setPreviewUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    stopCamera(); // Por seguridad apagamos cámara si estaba encendida
   };
 
-  // Envío del formulario
+  // --- ENVÍO DEL FORMULARIO ---
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // 1. Preparamos los datos en un objeto FormData
       const data = new FormData();
       data.append('nombre_reportante', formData.name || 'Anónimo');
       data.append('numero_contacto', formData.phone);
       
-      // Concatenamos el tipo al inicio de la descripción para mayor contexto
+      // Concatenamos el tipo para dar contexto rápido en el dashboard
       const fullDescription = `[TIPO: ${formData.type.toUpperCase()}] ${formData.description}`;
       data.append('descripcion', fullDescription);
       
-      // Estado inicial
       data.append('estado', 'pendiente');
 
-      // 2. Adjuntamos la foto si existe
       if (photo) {
         data.append('foto', photo);
       }
 
-      // 3. Enviamos al backend usando nuestro servicio
       await createReporte(data);
 
-      // 4. Feedback de éxito
       alert('¡Gracias! Tu reporte ha sido registrado exitosamente.');
       
-      // 5. Limpiar formulario y previsualización
+      // Resetear formulario
       setFormData({ name: '', phone: '', type: 'incidente', description: '' });
       handleRemovePhoto();
 
@@ -86,30 +151,25 @@ export default function ReportPage() {
     <div className="min-h-screen bg-neutral-950 text-white p-6 pb-24 font-sans animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       <div className="max-w-4xl mx-auto">
-        {/* 1. Botón de regreso */}
         <BackButton />
 
-        {/* 2. Encabezado */}
         <SectionHeader 
           title="Reportar Anomalía" 
-          description="Ayúdanos a mantener la seguridad y el orden de la festividad. Tu reporte será enviado directamente al centro de control."
+          description="Ayúdanos a mantener la seguridad. Tu reporte será enviado directamente al centro de control."
           borderColor="border-yellow-500"
         />
         
-        {/* 3. Formulario */}
         <div className="mt-8">
           <form onSubmit={handleSubmit} className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden">
             
-            {/* Decoración de fondo sutil */}
+            {/* Decoración de fondo */}
             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
               
-              {/* Campo: Nombre */}
+              {/* Nombre */}
               <div className="space-y-2">
-                <label htmlFor="name" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">
-                  Tu Nombre (Opcional)
-                </label>
+                <label htmlFor="name" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">Tu Nombre (Opcional)</label>
                 <input
                   type="text"
                   id="name"
@@ -120,11 +180,9 @@ export default function ReportPage() {
                 />
               </div>
 
-              {/* Campo: Celular */}
+              {/* Teléfono */}
               <div className="space-y-2">
-                <label htmlFor="phone" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">
-                  Celular de Contacto
-                </label>
+                <label htmlFor="phone" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">Celular de Contacto</label>
                 <input
                   type="tel"
                   id="phone"
@@ -136,11 +194,9 @@ export default function ReportPage() {
                 />
               </div>
 
-              {/* Campo: Tipo de Reporte */}
+              {/* Tipo de incidente */}
               <div className="space-y-2 md:col-span-2">
-                <label htmlFor="type" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">
-                  Tipo de Incidente
-                </label>
+                <label htmlFor="type" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">Tipo de Incidente</label>
                 <div className="relative">
                   <select
                     id="type"
@@ -154,7 +210,6 @@ export default function ReportPage() {
                     <option value="sugerencia">💡 Sugerencia</option>
                     <option value="otro">📝 Otro</option>
                   </select>
-                  {/* Flecha personalizada */}
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -164,11 +219,9 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Campo: Descripción */}
+            {/* Descripción */}
             <div className="space-y-2 relative z-10">
-              <label htmlFor="description" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">
-                Detalle del Reporte
-              </label>
+              <label htmlFor="description" className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1">Detalle del Reporte</label>
               <textarea
                 id="description"
                 rows={5}
@@ -180,36 +233,85 @@ export default function ReportPage() {
               />
             </div>
 
-            {/* Campo: Foto con Previsualización */}
+            {/* SECCIÓN DE EVIDENCIA (FOTO / CÁMARA) */}
             <div className="space-y-2 relative z-10">
               <label className="block text-xs font-bold text-yellow-500/80 uppercase tracking-widest ml-1 mb-2">
                 Evidencia (Foto Opcional)
               </label>
               
-              {!previewUrl ? (
-                <div className="relative group">
-                  <input
-                    type="file"
-                    id="photo"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden" 
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-32 border-2 border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-white hover:border-yellow-500/50 hover:bg-white/5 transition-all cursor-pointer"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                    </svg>
-                    <span className="text-sm font-medium">Toca para tomar foto o subir archivo</span>
-                  </button>
+              {/* Input de archivo oculto (para funcionalidad de galería) */}
+              <input
+                type="file"
+                id="photo"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden" 
+              />
+
+              {/* Botones de Selección (si no hay foto ni cámara abierta) */}
+              {!previewUrl && !isCameraOpen && (
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Botón: Usar Cámara */}
+                    <button
+                        type="button"
+                        onClick={startCamera}
+                        className="h-32 border-2 border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-yellow-400 hover:border-yellow-500/50 hover:bg-white/5 transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                        </svg>
+                        <span className="text-sm font-bold">Usar Cámara</span>
+                    </button>
+
+                    {/* Botón: Subir de Galería */}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-32 border-2 border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all"
+                    >
+                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                        <span className="text-sm font-bold">Galería</span>
+                    </button>
                 </div>
-              ) : (
-                <div className="relative w-full h-64 bg-black/40 rounded-2xl overflow-hidden border border-white/10 group">
+              )}
+
+              {/* MODO CÁMARA ACTIVA */}
+              {isCameraOpen && (
+                 <div className="relative w-full h-64 bg-black rounded-2xl overflow-hidden border border-yellow-500/50 shadow-lg">
+                    <video 
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                        {/* Botón Cerrar Cámara */}
+                        <button
+                            type="button"
+                            onClick={stopCamera}
+                            className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white p-3 rounded-full transition-all"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        {/* Botón Capturar */}
+                        <button
+                            type="button"
+                            onClick={capturePhoto}
+                            className="bg-white border-4 border-gray-300 w-16 h-16 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all"
+                        ></button>
+                    </div>
+                 </div>
+              )}
+
+              {/* VISTA PREVIA (FOTO CAPTURADA O SUBIDA) */}
+              {previewUrl && (
+                <div className="relative w-full h-64 bg-black/40 rounded-2xl overflow-hidden border border-white/10 group animate-in fade-in zoom-in-95 duration-300">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={previewUrl} 
@@ -217,7 +319,7 @@ export default function ReportPage() {
                     className="w-full h-full object-contain"
                   />
                   
-                  {/* Overlay con botón de eliminar */}
+                  {/* Botón Eliminar (Desktop) */}
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
@@ -225,13 +327,13 @@ export default function ReportPage() {
                       className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full backdrop-blur-sm transition-transform transform hover:scale-105 flex items-center gap-2 font-bold text-sm shadow-lg"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                       Eliminar Foto
                     </button>
                   </div>
                   
-                  {/* Botón visible siempre en móvil (opcional si el hover no es obvio) */}
+                  {/* Botón Eliminar (Móvil - visible siempre) */}
                   <button
                       type="button"
                       onClick={handleRemovePhoto}
@@ -284,9 +386,9 @@ export default function ReportPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p>
-              Los reportes son enviados directamente al comité de seguridad de la Cofradía de Negritos. 
+              Los reportes son enviados directamente al comité de seguridad. 
               <br/>
-              <span className="text-yellow-500/80 font-bold">Importante:</span> Si te encuentras en una situación de riesgo inmediato, por favor contacta a la Policía Nacional (105).
+              <span className="text-yellow-500/80 font-bold">Importante:</span> Si te encuentras en una situación de riesgo inmediato, contacta a la Policía Nacional (105).
             </p>
           </div>
         </div>

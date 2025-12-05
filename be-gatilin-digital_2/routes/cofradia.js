@@ -49,7 +49,7 @@ router.get('/template', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     const cofradias = await knex('cofradia')
-      .select('id', 'nombre_cofradia')
+      .select('id', 'nickname_cofradia', 'color')
       .orderBy('id', 'asc');
 
     res.status(200).json(cofradias);

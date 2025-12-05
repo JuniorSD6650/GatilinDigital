@@ -9,9 +9,9 @@ const app = express();
 
 // Habilitar CORS para permitir solicitudes desde otros dominios
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5000', // Cambia esto si tu frontend está en otro puerto o dominio
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
-  allowedHeaders: ['Content-Type', 'Authorization'], // Cabeceras permitidas
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  allowedHeaders: ['Content-Type', 'Authorization'], 
 }));
 
 // Configurar la ruta para los archivos estáticos

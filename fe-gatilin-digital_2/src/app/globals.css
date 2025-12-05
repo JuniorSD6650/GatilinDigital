@@ -14,24 +14,35 @@
   --color-festivo-cyan: #00B0FF;
   --color-festivo-orange: #FF6D00;
   --color-festivo-red: #D50000;
+  --color-festivo-blue: #2962FF; /* Agregamos el azul para el festival */
 
-  /* * FUENTES TIPOGRÁFICAS
-   * Aquí conectamos la fuente "Gabriela" que cargamos en el layout.
-   * 'serif' es el fallback por si falla la carga.
-   */
+  /* Fuentes */
   --font-display: "Gabriela", serif; 
-  --font-body: "Gabriela", serif; /* Usamos Gabriela también para el cuerpo si la quieres en toda la página */
+  --font-body: "Gabriela", serif;
 }
 
 /* Estilos base */
 body {
   background-color: var(--color-negrito-bg);
   color: var(--color-negrito-text);
-  
-  /* Aplicamos la fuente base definida arriba */
   font-family: var(--font-body);
-
-  /* Patrón de fondo sutil */
   background-image: radial-gradient(rgba(255, 215, 0, 0.03) 1px, transparent 1px);
   background-size: 30px 30px;
+}
+
+/* --- ANIMACIONES PERSONALIZADAS --- */
+
+/* Animación de Flotación Suave (Para las tarjetas del Festival) */
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float {
+  animation: subtle-float 4s ease-in-out infinite;
+}
+
+/* Pausar animación al hacer hover para que no pelee con el transform de Tailwind */
+.group:hover.animate-float {
+  animation-play-state: paused;
 }

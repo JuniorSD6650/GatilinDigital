@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "migrate": "knex migrate:latest --knexfile knexfile.js --env development"
+    "migrate": "knex migrate:latest --knexfile knexfile.js --env development",
+    "seed": "knex seed:run",
+    "migrate-seed": "node createDatabase.js && npm run migrate && npm run seed && node createAdmin.js"
   },
   "keywords": [],
   "author": "",

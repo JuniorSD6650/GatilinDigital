@@ -74,6 +74,35 @@ export const getCofradiaDetail = async (id: number): Promise<CofradiaDetalle | n
   }
 };
 
+// --- SECCIÓN EVENTOS (Cronograma de Cofradías) ---
+export interface Evento {
+  id: number;
+  fecha: string;
+  tipo_dia: string;
+  tipo_evento: string;
+  hora: string;
+  direccion_actividad: string;
+  oferente: string;
+  tipo_oferente: string;
+  banda: string;
+  cofradia: number;
+  nickname_cofradia?: string;
+}
+
+export const getEventosByCofradiaId = async (cofradiaId: number): Promise<Evento[]> => {
+  try {
+    const response = await fetch(`${API_URL}/eventos?cod_cofradia=${cofradiaId}`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error obteniendo eventos de cofradía ${cofradiaId}:`, error);
+    return [];
+  }
+};
+
 // --- SECCIÓN BORDADURÍAS ---
 export interface BordaduriaResumen {
   id: number;

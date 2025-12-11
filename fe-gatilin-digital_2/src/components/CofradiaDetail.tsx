@@ -1,6 +1,7 @@
 'use client';
 
-import { type CofradiaDetalle } from '@/services/apis/api-normal';
+import { useEffect, useState } from 'react';
+import { type CofradiaDetalle, type Evento, getEventosByCofradiaId } from '@/services/apis/api-normal';
 
 // Función auxiliar para formatear tiempo relativo
 const formatRelativeTime = (dateString: string) => {
@@ -40,10 +41,32 @@ interface CofradiaDetailProps {
 }
 
 export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDetailProps) {
+    const [eventos, setEventos] = useState<Evento[]>([]);
+    const [loadingEventos, setLoadingEventos] = useState(true);
+
     // Fix para color negro: usar #FF007F si es #000 o #000000
     const displayColor = (detail.color === '#000' || detail.color === '#000000' || !detail.color) 
         ? '#FF007F' 
         : detail.color;
+
+    // Cargar eventos de la cofradía
+    useEffect(() => {
+        const fetchEventos = async () => {
+            setLoadingEventos(true);
+            try {
+                const data = await getEventosByCofradiaId(detail.id);
+                setEventos(data);
+            } catch (error) {
+                console.error('Error cargando eventos:', error);
+            } finally {
+                setLoadingEventos(false);
+            }
+        };
+
+        if (detail.id) {
+            fetchEventos();
+        }
+    }, [detail.id]);
 
     if (loading) {
         return (
@@ -157,46 +180,237 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
 
                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 text-gray-300">
                                 {/* Nombre completo */}
-                                <li className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wide">Nombre completo</span>
-                                    <span className="font-medium">
-                                        {detail.nombre_cofradia || <span className="text-gray-600 italic font-light">No especificada</span>}
-                                    </span>
-                                </li>
+                                {detail.nombre_cofradia && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Nombre completo</span>
+                                        <span className="font-medium">{detail.nombre_cofradia}</span>
+                                    </li>
+                                )}
 
                                 {/* Fundación */}
-                                <li className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wide">Fundación</span>
-                                    <span className="font-medium">
-                                        {detail.fecha_fundacion || <span className="text-gray-600 italic font-light">No especificada</span>}
-                                    </span>
-                                </li>
+                                {detail.fecha_fundacion && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Fundación</span>
+                                        <span className="font-medium">{detail.fecha_fundacion}</span>
+                                    </li>
+                                )}
 
                                 {/* Distrito */}
-                                <li className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wide">Distrito</span>
-                                    <span className="font-medium">
-                                        {detail.distrito || <span className="text-gray-600 italic font-light">Huánuco</span>}
-                                    </span>
-                                </li>
+                                {detail.distrito && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Distrito</span>
+                                        <span className="font-medium">{detail.distrito}</span>
+                                    </li>
+                                )}
 
                                 {/* Sede Local */}
-                                <li className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wide">Sede Local</span>
-                                    <span className="font-medium">
-                                        {detail.sede_local || <span className="text-gray-600 italic font-light">No especificada</span>}
-                                    </span>
-                                </li>
+                                {detail.sede_local && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Sede Local</span>
+                                        <span className="font-medium">{detail.sede_local}</span>
+                                    </li>
+                                )}
 
                                 {/* Representante */}
-                                <li className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wide">Representante</span>
-                                    <span className="font-medium">
-                                        {detail.nombre_representante || <span className="text-gray-600 italic font-light">No registrado</span>}
-                                    </span>
-                                </li>
+                                {detail.nombre_representante && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Representante</span>
+                                        <span className="font-medium">{detail.nombre_representante}</span>
+                                    </li>
+                                )}
+
+                                {/* DNI Representante */}
+                                {detail.dni_representante && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">DNI Representante</span>
+                                        <span className="font-medium">{detail.dni_representante}</span>
+                                    </li>
+                                )}
+
+                                {/* Celular Representante */}
+                                {detail.cel_representante && (
+                                    <li className="flex flex-col">
+                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Celular</span>
+                                        <span className="font-medium">{detail.cel_representante}</span>
+                                    </li>
+                                )}
                             </ul>
                         </div>
+
+                        {/* 4. SECCIÓN: CRONOGRAMA DE EVENTOS */}
+                        {eventos.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="text-center space-y-2">
+                                    <h3
+                                        className="text-2xl font-display font-bold uppercase tracking-widest inline-block pb-2 border-b-4"
+                                        style={{ color: displayColor, borderColor: displayColor }}
+                                    >
+                                        🎉 Cronograma de Actividades
+                                    </h3>
+                                    <p className="text-gray-400">Únete a nosotros en cada evento</p>
+                                </div>
+
+                                {loadingEventos ? (
+                                    <div className="space-y-4">
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="h-32 bg-white/5 rounded-2xl animate-pulse" />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {/* Agrupar eventos por fecha */}
+                                        {Object.entries(
+                                            eventos.reduce((acc, evento) => {
+                                                if (!acc[evento.fecha]) {
+                                                    acc[evento.fecha] = [];
+                                                }
+                                                acc[evento.fecha].push(evento);
+                                                return acc;
+                                            }, {} as Record<string, Evento[]>)
+                                        )
+                                        .sort(([dateA], [dateB]) => {
+                                            // Ordenar por fecha (formato dd/MM/yyyy)
+                                            const [dayA, monthA, yearA] = dateA.split('/').map(Number);
+                                            const [dayB, monthB, yearB] = dateB.split('/').map(Number);
+                                            const dateObjA = new Date(yearA, monthA - 1, dayA);
+                                            const dateObjB = new Date(yearB, monthB - 1, dayB);
+                                            return dateObjA.getTime() - dateObjB.getTime();
+                                        })
+                                        .map(([fecha, eventosDelDia]) => (
+                                            <div key={fecha} className="relative">
+                                                {/* Línea temporal vertical */}
+                                                <div 
+                                                    className="absolute left-8 top-0 bottom-0 w-1 hidden md:block"
+                                                    style={{ backgroundColor: `${displayColor}30` }}
+                                                />
+
+                                                {/* Header de Fecha */}
+                                                <div className="flex items-center gap-4 mb-4 relative z-10">
+                                                    <div 
+                                                        className="flex items-center justify-center w-16 h-16 rounded-2xl shadow-lg font-bold text-white"
+                                                        style={{ backgroundColor: displayColor }}
+                                                    >
+                                                        <div className="text-center">
+                                                            <div className="text-2xl leading-none">{fecha.split('/')[0]}</div>
+                                                            <div className="text-xs opacity-80">{fecha.split('/')[1]}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-lg font-bold text-white">{eventosDelDia[0].tipo_dia}</p>
+                                                        <p className="text-sm text-gray-500">{fecha}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Eventos del día */}
+                                                <div className="md:ml-24 space-y-4">
+                                                    {eventosDelDia
+                                                        .sort((a, b) => a.hora.localeCompare(b.hora))
+                                                        .map((evento) => (
+                                                        <div
+                                                            key={evento.id}
+                                                            className="relative bg-gradient-to-br from-negrito-card to-neutral-900 border border-white/10 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+                                                        >
+                                                            {/* Hora destacada */}
+                                                            <div className="absolute -left-3 top-6 md:left-auto md:-right-3 bg-negrito-bg px-4 py-2 rounded-xl border-2 shadow-lg"
+                                                                style={{ borderColor: displayColor }}
+                                                            >
+                                                                <p className="text-lg font-bold" style={{ color: displayColor }}>
+                                                                    {evento.hora.substring(0, 5)}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="ml-20 md:ml-0 space-y-4">
+                                                                {/* Tipo de evento */}
+                                                                <div className="flex items-start gap-3">
+                                                                    <span className="text-3xl">📍</span>
+                                                                    <div className="flex-1">
+                                                                        <h4 className="text-xl font-bold text-white group-hover:translate-x-1 transition-transform">
+                                                                            {evento.tipo_evento}
+                                                                        </h4>
+                                                                        {evento.tipo_dia && (
+                                                                            <p className="text-sm text-gray-500 mt-1">
+                                                                                {evento.tipo_dia}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Dirección */}
+                                                                {evento.direccion_actividad && (
+                                                                    <div className="bg-white/5 rounded-xl p-3 flex items-start gap-2">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
+                                                                            <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                        <div>
+                                                                            <p className="text-xs text-gray-500 uppercase tracking-wide">Dirección</p>
+                                                                            <p className="text-white font-medium">{evento.direccion_actividad}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Detalles adicionales */}
+                                                                <div className="space-y-2">
+                                                                    {/* Oferente */}
+                                                                    {(evento.tipo_oferente || evento.oferente) && (
+                                                                        <div className="bg-white/5 rounded-xl p-3">
+                                                                            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ofrece</p>
+                                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                                {evento.tipo_oferente && (
+                                                                                    <span 
+                                                                                        className="text-xs px-2 py-1 rounded-full font-bold"
+                                                                                        style={{ 
+                                                                                            backgroundColor: `${displayColor}20`,
+                                                                                            color: displayColor
+                                                                                        }}
+                                                                                    >
+                                                                                        {evento.tipo_oferente}
+                                                                                    </span>
+                                                                                )}
+                                                                                {evento.oferente && (
+                                                                                    <span className="text-white font-medium">{evento.oferente}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {/* Banda */}
+                                                                    {evento.banda && evento.banda !== 'Ninguna' && (
+                                                                        <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
+                                                                            <span className="text-2xl">🎵</span>
+                                                                            <div>
+                                                                                <p className="text-xs text-gray-500 uppercase tracking-wide">Banda</p>
+                                                                                <p className="text-white font-medium">{evento.banda}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Call to Action */}
+                                <div 
+                                    className="relative overflow-hidden text-center p-8 rounded-2xl border-2"
+                                    style={{ 
+                                        backgroundColor: `${displayColor}10`,
+                                        borderColor: displayColor
+                                    }}
+                                >
+                                    <div className="absolute top-0 right-0 text-9xl opacity-10">🎭</div>
+                                    <h4 className="text-2xl font-bold mb-2" style={{ color: displayColor }}>
+                                        ¡Ven y Participa!
+                                    </h4>
+                                    <p className="text-gray-300 max-w-2xl mx-auto">
+                                        Únete a nosotros en cada evento y vive la tradición huanuqueña. ¡Te esperamos con los brazos abiertos!
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                     </div>
                 </div>

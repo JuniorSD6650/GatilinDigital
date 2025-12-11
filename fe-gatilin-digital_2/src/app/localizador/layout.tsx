@@ -2,7 +2,7 @@
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { logout, getCurrentUser } from '@/services/apis/api-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function LocalizadorLayout({
@@ -72,7 +72,6 @@ export default function LocalizadorLayout({
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex gap-1 overflow-x-auto">
               <NavLink href="/localizador" label="Mi Ubicación" icon="📍" />
-              <NavLink href="/" label="Ver sitio público" icon="🌐" external />
             </div>
           </div>
         </nav>
@@ -90,7 +89,8 @@ export default function LocalizadorLayout({
 // Componente auxiliar para links de navegación
 function NavLink({ href, label, icon, external }: { href: string; label: string; icon: string; external?: boolean }) {
   const router = useRouter();
-  const isActive = typeof window !== 'undefined' && window.location.pathname === href;
+  const pathname = usePathname();
+  const isActive = pathname === href;
 
   const handleClick = (e: React.MouseEvent) => {
     if (!external) {

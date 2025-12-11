@@ -2,7 +2,7 @@
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { logout, getCurrentUser } from '@/services/apis/api-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function AdminLayout({
@@ -72,7 +72,6 @@ export default function AdminLayout({
               <NavLink href="/admin" label="Dashboard" icon="📊" />
               <NavLink href="/admin/cofradias" label="Cofradías" icon="⛪" />
               <NavLink href="/admin/usuarios" label="Localizadores" icon="👥" />
-              <NavLink href="/" label="Ver sitio público" icon="🌐" external />
             </div>
           </div>
         </nav>
@@ -90,7 +89,8 @@ export default function AdminLayout({
 // Componente auxiliar para links de navegación
 function NavLink({ href, label, icon, external }: { href: string; label: string; icon: string; external?: boolean }) {
   const router = useRouter();
-  const isActive = typeof window !== 'undefined' && window.location.pathname === href;
+  const pathname = usePathname();
+  const isActive = pathname === href;
 
   const handleClick = (e: React.MouseEvent) => {
     if (!external) {

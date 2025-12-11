@@ -72,27 +72,7 @@ export default function LocalizadorPage() {
     }
   };
 
-  const handleGetCurrentPosition = () => {
-    if ('geolocation' in navigator) {
-      setLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          // Generar link compatible con compartir desde celular (formato corto)
-          const googleMapsLink = `https://maps.app.goo.gl/?q=${latitude},${longitude}`;
-          setUbicacionLink(googleMapsLink);
-          setLoading(false);
-        },
-        (err) => {
-          setError('No se pudo obtener la ubicación. Verifica los permisos.');
-          setLoading(false);
-          console.error(err);
-        }
-      );
-    } else {
-      setError('Tu navegador no soporta geolocalización');
-    }
-  };
+
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -143,29 +123,18 @@ export default function LocalizadorPage() {
             <label htmlFor="ubicacion" className="block text-sm font-medium text-gray-300">
               Link de Ubicación
             </label>
-            <div className="flex gap-2">
-              <input
-                id="ubicacion"
-                type="url"
-                value={ubicacionLink}
-                onChange={(e) => setUbicacionLink(e.target.value)}
-                className="flex-1 px-4 py-3 bg-neutral-900 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-cyan/50 focus:border-transparent transition-all"
-                placeholder="https://maps.app.goo.gl/..."
-                required
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={handleGetCurrentPosition}
-                disabled={loading}
-                className="px-4 py-3 bg-festivo-cyan/10 border border-festivo-cyan/30 text-festivo-cyan rounded-xl hover:bg-festivo-cyan/20 transition-colors disabled:opacity-50"
-                title="Usar mi ubicación actual"
-              >
-                📍
-              </button>
-            </div>
+            <input
+              id="ubicacion"
+              type="url"
+              value={ubicacionLink}
+              onChange={(e) => setUbicacionLink(e.target.value)}
+              className="w-full px-4 py-3 bg-neutral-900 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-cyan/50 focus:border-transparent transition-all"
+              placeholder="https://maps.app.goo.gl/..."
+              required
+              disabled={loading}
+            />
             <p className="text-xs text-gray-500">
-              Pega el enlace de "Compartir ubicación" de Google Maps desde tu celular, o usa el botón 📍
+              Pega el enlace de "Compartir ubicación" de Google Maps desde tu celular
             </p>
           </div>
 

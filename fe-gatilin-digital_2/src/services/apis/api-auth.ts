@@ -78,7 +78,7 @@ export const login = async (credentials: LoginPayload): Promise<AuthResponse> =>
       username: decodedToken?.username || credentials.username,
       rol: (decodedToken?.role || data.role || data.rol || 'admin') as 'admin' | 'localizador',
       cofradia_id: decodedToken?.cofradiaId || data.cofradiaId || data.cofradia_id || null,
-      cofradia_nombre: data.cofradia_nombre || null,
+      cofradia_nombre: decodedToken?.cofradia_nombre || data.cofradia_nombre || null,
     };
 
     // Guardar en localStorage
@@ -120,7 +120,28 @@ export const getCurrentUser = (): User | null => {
 
   try {
     const userStr = localStorage.getItem('user');
-    if (!userStr) return null;
+    if (!userStr) {
+      // Si no hay usuario en localStorage, intentar decodificar el token
+      const token = getAuthToken();
+      if (!token) return null;
+      
+      const decodedToken = decodeJWT(token);
+      if (!decodedToken) return null;
+      
+      // Reconstruir el usuario desde el token
+      const user: User = {
+        id: decodedToken.id,
+        username: decodedToken.username,
+        rol: decodedToken.role,
+        cofradia_id: decodedToken.cofradiaId,
+        cofradia_nombre: decodedToken.cofradia_nombre,
+      };
+      
+      // Guardar en localStorage para la próxima vez
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return user;
+    }
     return JSON.parse(userStr);
   } catch (error) {
     console.error('Error al obtener usuario:', error);

@@ -227,11 +227,22 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Buscar el usuario en la base de datos
-    const admin = await knex('usuarios').where('username', username).first();
+    // Buscar el usuario en la base de datos con información de la cofradía
+    const admin = await knex('usuarios')
+      .select(
+        'usuarios.id',
+        'usuarios.username',
+        'usuarios.password',
+        'usuarios.role',
+        'usuarios.cofradia_id',
+        'cofradia.nickname_cofradia'
+      )
+      .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
+      .where('usuarios.username', username)
+      .first();
 
     if (!admin) {
-      return res.status(404).json({ message: 'Administrador no encontrado.' });
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
 
     // Verificar si la contraseña es correcta
@@ -240,12 +251,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Contraseña incorrecta.' });
     }
 
-    // Generar el token JWT
+    // Generar el token JWT con información de la cofradía
     const payload = {
       id: admin.id,
       username: admin.username,
       role: admin.role,
       cofradiaId: admin.cofradia_id,
+      cofradia_nombre: admin.nickname_cofradia,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET || "secretkey", {
@@ -255,7 +267,7 @@ router.post('/login', async (req, res) => {
     res.status(200).json({ message: 'Login exitoso', token });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error en el login del administrador.' });
+    res.status(500).json({ message: 'Error en el login.' });
   }
 });
 
@@ -303,9 +315,14 @@ router.put('/:id', async (req, res) => {
     const updatedUser = {
       username: username || user.username,
       role: role || user.role,
-      cofradia_id: role === 'localizador' ? cofradia_id : null
     };
 
+    // Solo actualizar cofradia_id si se envía explícitamente
+    if (cofradia_id !== undefined) {
+      updatedUser.cofradia_id = cofradia_id;
+    }
+
+    // Solo actualizar la contraseña si se envía
     if (password) {
       updatedUser.password = await bcrypt.hash(password, 10);
     }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import FloatingReportButton from "@/components/FloatingButtons";
+import WelcomeModal from "@/components/WelcomeModal";
 
 export const metadata: Metadata = {
   title: "Gatilín Digital - Negritos de Huánuco",
@@ -31,6 +32,9 @@ export default function RootLayout({
       <body className="antialiased min-h-screen pt-16 bg-neutral-950 text-white"> 
         {/* pt-16 compensa la altura del Navbar fijo */}
         <Navbar />
+        
+        {/* Modal de bienvenida (solo aparece una vez) */}
+        <WelcomeModal />
         
         {/* Botón flotante de reporte (Matraca) */}
         <FloatingReportButton />

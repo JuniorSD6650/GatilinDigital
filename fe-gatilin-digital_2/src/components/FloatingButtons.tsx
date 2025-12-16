@@ -1,89 +1,45 @@
 'use client';
 
-import { useState, useRef, useEffect, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
-
-// ============================================================================
-// ⚠️ INSTRUCCIONES PARA TU PROYECTO LOCAL:
-// 1. Descomenta la línea de abajo:
-// import Link from 'next/link';
-// 2. Borra o comenta el componente "Link" simulado (MOCK) de abajo.
-// ============================================================================
-
-// --- MOCK PARA VISTA PREVIA (BORRAR O COMENTAR EN LOCAL) ---
-const Link = ({ href, onClick, children, className }: any) => (
-  <a href={href} onClick={onClick} className={className} draggable={false}>
-    {children}
-  </a>
-);
-// -----------------------------------------------------------
-
-type ButtonId = 'register' | 'report';
+import { useState, useRef, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
+import Link from 'next/link';
 
 export default function FloatingButtons() {
-  // --- ESTADO PARA POSICIONES INDIVIDUALES ---
-  const [positions, setPositions] = useState<{
-    register: { x: number, y: number } | null;
-    report: { x: number, y: number } | null;
-  }>({
-    register: null,
-    report: null
-  });
-
-  // Estado para controlar la visibilidad del botón de registro
-  const [showRegister, setShowRegister] = useState(false);
-
-  // Efecto para comprobar si se debe mostrar (Persistencia de Sesión)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isHidden = sessionStorage.getItem('hide_register_btn');
-      if (isHidden !== 'true') {
-        setShowRegister(true);
-      }
-    }
-  }, []);
+  // --- ESTADO PARA POSICIÓN ---
+  const [position, setPosition] = useState<{ x: number, y: number } | null>(null);
 
   // --- REFS ---
-  const activeDrag = useRef<ButtonId | null>(null);
   const isDragging = useRef(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const elementOffset = useRef({ x: 0, y: 0 });
-
-  const registerRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // --- LÓGICA DE ARRASTRE ---
-  const handleStart = (clientX: number, clientY: number, id: ButtonId, target: HTMLElement) => {
+  const handleStart = (clientX: number, clientY: number, target: HTMLElement) => {
     isDragging.current = false;
-    activeDrag.current = id;
     dragStartPos.current = { x: clientX, y: clientY };
     
     const rect = target.getBoundingClientRect();
     elementOffset.current = { x: clientX - rect.left, y: clientY - rect.top };
     
-    if (!positions[id]) {
-      setPositions(prev => ({
-        ...prev,
-        [id]: { x: rect.left, y: rect.top }
-      }));
+    if (!position) {
+      setPosition({ x: rect.left, y: rect.top });
     }
   };
 
-  const onMouseDown = (e: ReactMouseEvent<HTMLDivElement>, id: ButtonId) => {
-    handleStart(e.clientX, e.clientY, id, e.currentTarget);
+  const onMouseDown = (e: ReactMouseEvent<HTMLDivElement>) => {
+    handleStart(e.clientX, e.clientY, e.currentTarget);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
 
-  const onTouchStart = (e: ReactTouchEvent<HTMLDivElement>, id: ButtonId) => {
+  const onTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
-    handleStart(touch.clientX, touch.clientY, id, e.currentTarget);
+    handleStart(touch.clientX, touch.clientY, e.currentTarget);
     document.addEventListener('touchmove', onTouchMove, { passive: false });
     document.addEventListener('touchend', onTouchEnd);
   };
 
   const move = (clientX: number, clientY: number) => {
-    if (!activeDrag.current) return;
-
     if (!isDragging.current) {
       const dx = Math.abs(clientX - dragStartPos.current.x);
       const dy = Math.abs(clientY - dragStartPos.current.y);
@@ -92,11 +48,9 @@ export default function FloatingButtons() {
 
     let newX = clientX - elementOffset.current.x;
     let newY = clientY - elementOffset.current.y;
-    
-    const currentRef = activeDrag.current === 'register' ? registerRef : reportRef;
 
-    if (currentRef.current) {
-      const { offsetWidth: width, offsetHeight: height } = currentRef.current;
+    if (reportRef.current) {
+      const { offsetWidth: width, offsetHeight: height } = reportRef.current;
       const padding = 10;
       const maxX = window.innerWidth - width - padding;
       const maxY = window.innerHeight - height - padding;
@@ -105,10 +59,7 @@ export default function FloatingButtons() {
       newY = Math.max(padding, Math.min(newY, maxY));
     }
 
-    setPositions(prev => ({
-      ...prev,
-      [activeDrag.current!]: { x: newX, y: newY }
-    }));
+    setPosition({ x: newX, y: newY });
   };
 
   const onMouseMove = (e: MouseEvent) => {
@@ -140,16 +91,6 @@ export default function FloatingButtons() {
     }
   };
 
-  // Función para cerrar y guardar preferencia
-  const handleCloseRegister = (e: ReactMouseEvent | ReactTouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowRegister(false);
-    if (typeof window !== 'undefined') {
-        sessionStorage.setItem('hide_register_btn', 'true');
-    }
-  };
-
   return (
     <>
       <style>{`
@@ -162,39 +103,18 @@ export default function FloatingButtons() {
           animation: matraca-wiggle 2s ease-in-out infinite;
           filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.4)); 
         }
-
-        /* Animación de Latido para el texto */
-        @keyframes pulse-glow {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(236, 72, 153, 0.5); }
-            50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
-        }
-        .animate-text-pulse {
-            animation: pulse-glow 2s infinite;
-        }
-        
-        /* Animación de entrada suave */
-        .fade-in-scale {
-            animation: fadeInScale 0.3s ease-out forwards;
-        }
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
       `}</style>
 
-      {/* =======================================
-          BOTÓN 1: REPORTAR (Matraca - Arriba)
-          Posición inicial: bottom: 110px
-         ======================================= */}
+      {/* BOTÓN: REPORTAR (Matraca) */}
       <div
         ref={reportRef}
-        style={positions.report 
-          ? { left: `${positions.report.x}px`, top: `${positions.report.y}px` } 
-          : { bottom: '110px', right: '30px' }
+        style={position 
+          ? { left: `${position.x}px`, top: `${position.y}px` } 
+          : { bottom: '30px', right: '30px' }
         }
         className="fixed z-50 cursor-grab active:cursor-grabbing touch-none select-none hover:scale-105 active:scale-95 transition-transform"
-        onMouseDown={(e) => onMouseDown(e, 'report')}
-        onTouchStart={(e) => onTouchStart(e, 'report')}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
       >
         <Link 
           href="/reportar" 
@@ -225,63 +145,6 @@ export default function FloatingButtons() {
           </div>
         </Link>
       </div>
-
-      {/* =======================================
-          BOTÓN 2: REGISTRARSE (Texto Llamativo - Abajo y Cerrable)
-          Posición inicial: bottom: 30px
-         ======================================= */}
-      {showRegister && (
-        <div
-            ref={registerRef}
-            style={positions.register 
-            ? { left: `${positions.register.x}px`, top: `${positions.register.y}px` } 
-            : { bottom: '30px', right: '30px' }
-            }
-            className="fixed z-50 cursor-grab active:cursor-grabbing touch-none select-none fade-in-scale"
-            onMouseDown={(e) => onMouseDown(e, 'register')}
-            onTouchStart={(e) => onTouchStart(e, 'register')}
-        >
-            <div className="relative group/closeable">
-                {/* Botón de CERRAR (X) - SIEMPRE VISIBLE */}
-                <button
-                    onClick={handleCloseRegister}
-                    onMouseDown={(e) => e.stopPropagation()} 
-                    onTouchStart={(e) => e.stopPropagation()}
-                    className="absolute -top-3 -right-2 z-50 bg-white text-black border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:bg-gray-100 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                    title="Cerrar"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                    </svg>
-                </button>
-
-                <Link 
-                href="/registro" 
-                onClick={handleClick}
-                draggable={false}
-                className="group relative block"
-                >
-                    {/* Botón Pastilla Gradiente */}
-                    <div className="
-                    animate-text-pulse
-                    px-6 py-3 
-                    rounded-full 
-                    bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600
-                    border-2 border-white/20
-                    flex items-center justify-center
-                    hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500
-                    transition-all duration-300
-                    shadow-xl
-                    ">
-                        <span className="text-sm font-black text-white uppercase tracking-widest whitespace-nowrap drop-shadow-md">
-                        ¡Participa Aquí! ✨
-                        </span>
-                    </div>
-                </Link>
-            </div>
-        </div>
-      )}
-
     </>
   );
 }

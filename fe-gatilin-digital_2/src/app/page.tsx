@@ -20,7 +20,7 @@ export default function Home() {
       {/* Encabezado Hero */}
       <header className="text-center space-y-2 animate-in fade-in slide-in-from-top-4 duration-700 relative z-10">
         <h1 className="text-5xl md:text-7xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-b from-festivo-gold to-yellow-600 drop-shadow-sm">
-          Festiva de los Negritos de Huánuco
+          Festividad de los Negritos de Huánuco
         </h1>
         {/* Se ha eliminado el subtítulo para tener un solo título grande */}
       </header>

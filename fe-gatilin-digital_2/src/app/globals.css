@@ -46,3 +46,13 @@ body {
 .group:hover.animate-float {
   animation-play-state: paused;
 }
+
+/* Animación de Brillo Premium VIP (Para botón de Registro) */
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-shine {
+  animation: shine 3s ease-in-out infinite;
+}

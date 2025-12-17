@@ -335,4 +335,62 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Incrementar votos
+router.post('/:id/votar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cofradia = await knex('cofradia').where('id', id).first();
+    
+    if (!cofradia) {
+      return res.status(404).json({ error: 'Cofradía no encontrada' });
+    }
+
+    await knex('cofradia')
+      .where('id', id)
+      .increment('votos', 1);
+
+    const updatedCofradia = await knex('cofradia').where('id', id).first();
+    
+    res.json({ 
+      message: 'Voto registrado con éxito', 
+      votos: updatedCofradia.votos 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Error registrando voto', 
+      details: err.message || err 
+    });
+  }
+});
+
+// Decrementar votos
+router.delete('/:id/votar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cofradia = await knex('cofradia').where('id', id).first();
+    
+    if (!cofradia) {
+      return res.status(404).json({ error: 'Cofradía no encontrada' });
+    }
+
+    if (cofradia.votos > 0) {
+      await knex('cofradia')
+        .where('id', id)
+        .decrement('votos', 1);
+    }
+
+    const updatedCofradia = await knex('cofradia').where('id', id).first();
+    
+    res.json({ 
+      message: 'Voto removido con éxito', 
+      votos: updatedCofradia.votos 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Error removiendo voto', 
+      details: err.message || err 
+    });
+  }
+});
+
 module.exports = router;

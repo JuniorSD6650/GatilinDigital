@@ -13,6 +13,7 @@ exports.up = function(knex) {
     table.text('descripcion').nullable();
     table.string('ubicacion_link', 255).nullable();
     table.timestamp('ubicacion_link_actualizado').nullable(); 
+    table.integer('votos').defaultTo(0).unsigned();
     
     table.integer('organizacion_id').unsigned().references('id').inTable('organizacion').onDelete('CASCADE');
   });

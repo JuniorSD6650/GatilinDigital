@@ -44,6 +44,7 @@ export interface CofradiaDetalle {
   ubicacion_link: string;
   ubicacion_link_actualizado: string;
   organizacion_id: number;
+  votos: number;
 }
 
 export const getCofradiaList = async (): Promise<CofradiaResumen[]> => {
@@ -71,6 +72,34 @@ export const getCofradiaDetail = async (id: number): Promise<CofradiaDetalle | n
   } catch (error) {
     console.error(`Error obteniendo detalle de cofradía ${id}:`, error);
     return null;
+  }
+};
+
+export const votarCofradia = async (id: number): Promise<{ votos: number }> => {
+  try {
+    const response = await fetch(`${API_URL}/cofradia/${id}/votar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error votando cofradía ${id}:`, error);
+    throw error;
+  }
+};
+
+export const quitarVotoCofradia = async (id: number): Promise<{ votos: number }> => {
+  try {
+    const response = await fetch(`${API_URL}/cofradia/${id}/votar`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error quitando voto de cofradía ${id}:`, error);
+    throw error;
   }
 };
 

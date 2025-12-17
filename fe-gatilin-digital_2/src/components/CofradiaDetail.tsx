@@ -103,6 +103,37 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
         }
     };
 
+    // Función para compartir en redes sociales
+    const handleCompartir = async () => {
+        const url = `${window.location.origin}/sigueteo?cofradia=${detail.id}`;
+        const texto = `¡Vota por ${detail.nickname_cofradia}! 🎭✨\n\nApoya a mi cuadrilla favorita en la festividad.`;
+
+        // Usar Web Share API si está disponible (móviles)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Vota por ${detail.nickname_cofradia}`,
+                    text: texto,
+                    url: url,
+                });
+            } catch (error) {
+                // Usuario canceló o error
+                if ((error as Error).name !== 'AbortError') {
+                    console.error('Error compartiendo:', error);
+                }
+            }
+        } else {
+            // Fallback: copiar al portapapeles
+            try {
+                await navigator.clipboard.writeText(`${texto}\n\n${url}`);
+                alert('✅ Enlace copiado al portapapeles. ¡Compártelo con tus amigos!');
+            } catch (error) {
+                console.error('Error copiando al portapapeles:', error);
+                alert(`Comparte este enlace:\n${url}`);
+            }
+        }
+    };
+
     /* // Función para generar y descargar el tríptico (2 páginas)
     const handleDownloadTriptico = async () => {
         if (!tripticoRef.current || generatingPDF) return;
@@ -212,28 +243,29 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                     <div className="p-6 md:p-8 space-y-10">
 
                         {/* SECCIÓN: VOTACIÓN */}
-                        <div className="flex items-center justify-center gap-3 md:gap-4">
-                            <div 
-                                className="relative bg-gradient-to-br from-neutral-900 to-black p-4 rounded-2xl border-2 shadow-lg"
-                                style={{ borderColor: displayColor }}
-                            >
-                                <div className="absolute inset-0 rounded-2xl opacity-20 animate-pulse"
-                                    style={{ backgroundColor: displayColor }}
-                                />
-                                <div className="relative z-10 text-center">
-                                    <div className="flex items-center justify-center gap-1.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" style={{ color: displayColor }}>
-                                            <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.977a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z" />
-                                        </svg>
-                                        <span className="text-3xl font-black" style={{ color: displayColor }}>
-                                            {votos}
-                                        </span>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-center gap-3 md:gap-4">
+                                <div 
+                                    className="relative bg-gradient-to-br from-neutral-900 to-black p-4 rounded-2xl border-2 shadow-lg"
+                                    style={{ borderColor: displayColor }}
+                                >
+                                    <div className="absolute inset-0 rounded-2xl opacity-20 animate-pulse"
+                                        style={{ backgroundColor: displayColor }}
+                                    />
+                                    <div className="relative z-10 text-center">
+                                        <div className="flex items-center justify-center gap-1.5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" style={{ color: displayColor }}>
+                                                <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.977a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z" />
+                                            </svg>
+                                            <span className="text-3xl font-black" style={{ color: displayColor }}>
+                                                {votos}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mt-0.5">
+                                            {votos === 1 ? 'Voto' : 'Votos'}
+                                        </p>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mt-0.5">
-                                        {votos === 1 ? 'Voto' : 'Votos'}
-                                    </p>
                                 </div>
-                            </div>
                             
                             {!haVotadoEnEstaSesion ? (
                                 <button
@@ -295,6 +327,18 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                     </span>
                                 </button>
                             )}
+                            </div>
+
+                            {/* Botón de Compartir */}
+                            <button
+                                onClick={handleCompartir}
+                                className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 border-2 border-white/20 hover:border-white/40 transition-all hover:scale-105 active:scale-95 shadow-lg"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M15.75 4.5a3 3 0 11.825 2.066l-8.421 4.679a3.002 3.002 0 010 1.51l8.421 4.679a3 3 0 11-.729 1.31l-8.421-4.678a3 3 0 110-4.132l8.421-4.679a3 3 0 01-.096-.755z" clipRule="evenodd" />
+                                </svg>
+                                <span>Compartir y Pedir Votos</span>
+                            </button>
                         </div>
 
                         {/* 1. SECCIÓN: UBICACIÓN */}

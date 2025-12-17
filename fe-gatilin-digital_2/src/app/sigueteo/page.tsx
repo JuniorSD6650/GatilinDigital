@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import BackButton from "@/components/BackButton";
 import SectionHeader from "@/components/SectionHeader";
 import CofradiaDetail from "@/components/CofradiaDetail";
@@ -11,7 +12,24 @@ import {
   type CofradiaDetalle
 } from '@/services/apis/api-normal';
 
-export default function SigueteoPage() {
+// Componente que maneja los query params
+function QueryParamHandler({ onCofradiaSelect }: { onCofradiaSelect: (id: number) => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const cofradiaId = searchParams.get('cofradia');
+    if (cofradiaId) {
+      const id = parseInt(cofradiaId, 10);
+      if (!isNaN(id)) {
+        onCofradiaSelect(id);
+      }
+    }
+  }, [searchParams, onCofradiaSelect]);
+
+  return null;
+}
+
+function SigueteoContent() {
   // --- ESTADOS GLOBALES ---
   const [view, setView] = useState<'LIST' | 'DETAIL'>('LIST');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -41,6 +59,12 @@ export default function SigueteoPage() {
     };
     fetchList();
   }, []);
+
+  // Handler para seleccionar cofradía desde query param
+  const handleCofradiaFromQuery = (id: number) => {
+    setSelectedId(id);
+    setView('DETAIL');
+  };
 
   // 2. Filtrar Lista
   useEffect(() => {
@@ -194,7 +218,26 @@ export default function SigueteoPage() {
           </div>
         )}
 
+        {/* Query Param Handler con Suspense */}
+        <Suspense fallback={null}>
+          <QueryParamHandler onCofradiaSelect={handleCofradiaFromQuery} />
+        </Suspense>
+
       </div>
     </div>
+  );
+}
+
+export default function SigueteoPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen pb-20 animate-in fade-in duration-700">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="h-96 bg-white/5 rounded-3xl animate-pulse border border-white/10" />
+        </div>
+      </div>
+    }>
+      <SigueteoContent />
+    </Suspense>
   );
 }

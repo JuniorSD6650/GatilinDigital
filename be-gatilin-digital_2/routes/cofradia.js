@@ -393,4 +393,21 @@ router.delete('/:id/votar', async (req, res) => {
   }
 });
 
+// Obtener ranking de cofradías por votos
+router.get('/ranking/votos', async (req, res) => {
+  try {
+    const cofradias = await knex('cofradia')
+      .select('id', 'nickname_cofradia', 'color', 'votos')
+      .orderBy('votos', 'desc')
+      .orderBy('nickname_cofradia', 'asc');
+
+    res.json(cofradias);
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Error obteniendo ranking', 
+      details: err.message || err 
+    });
+  }
+});
+
 module.exports = router;

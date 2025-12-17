@@ -29,6 +29,13 @@ export interface CofradiaResumen {
   color: string;
 }
 
+export interface CofradiaRanking {
+  id: number;
+  nickname_cofradia: string;
+  color: string;
+  votos: number;
+}
+
 export interface CofradiaDetalle {
   id: number;
   nickname_cofradia: string;
@@ -100,6 +107,20 @@ export const quitarVotoCofradia = async (id: number): Promise<{ votos: number }>
   } catch (error) {
     console.error(`Error quitando voto de cofradía ${id}:`, error);
     throw error;
+  }
+};
+
+export const getRankingCofradias = async (): Promise<CofradiaRanking[]> => {
+  try {
+    const response = await fetch(`${API_URL}/cofradia/ranking/votos`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo ranking de cofradías:", error);
+    return [];
   }
 };
 

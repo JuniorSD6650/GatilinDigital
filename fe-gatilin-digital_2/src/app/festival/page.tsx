@@ -86,7 +86,7 @@ export default function FestivalPage() {
             
             {/* PODIO - Top 3 Posiciones */}
             <div className="relative">
-              <h2 className="text-3xl font-bold text-center mb-8 text-white">
+              <h2 className="text-3xl font-bold text-center mb-16 text-white">
                 🏆 Podio de Honor
               </h2>
               

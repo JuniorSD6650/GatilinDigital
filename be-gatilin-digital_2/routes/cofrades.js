@@ -3,11 +3,9 @@ const router = express.Router();
 const knexConfig = require('../knexfile');
 const knex = require('knex')(knexConfig);
 const path = require('path');
-
 const fs = require('fs');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const upload = multer({ dest: 'uploads/' });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -21,14 +19,17 @@ const storage = multer.diskStorage({
 });
 
 const upload_storage = multer({ storage: storage });
+const upload = multer({ dest: 'uploads/' }); // Para archivos temporales de excel
 
+// Columnas del Excel (Agregamos AÑO)
 const COFRADE_COLUMNS = [
   { header: 'DNI Cofrade', key: 'dni_cofrade', width: 20 },
   { header: 'Nombres y Apellidos', key: 'nombres_apellidos', width: 50 },
   { header: 'Celular', key: 'celular', width: 15 },
   { header: 'Personaje Cofradía', key: 'personaje_cofradia', width: 30 },
   { header: 'Cargo Cofrade', key: 'cargo_cofrade', width: 30 },
-  { header: 'Código Cofradía', key: 'cod_cofradia', width: 20 }
+  { header: 'Código Cofradía', key: 'cod_cofradia', width: 20 },
+  { header: 'Año', key: 'anio', width: 10 } // Nueva columna
 ];
 
 // Descargar plantilla
@@ -40,14 +41,11 @@ router.get('/template', async (req, res) => {
     worksheet.columns = COFRADE_COLUMNS;
     worksheet.getRow(1).font = { bold: true };
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=Plantilla_Cofrades.xlsx'
-    );
+    // Ejemplo de año
+    worksheet.getCell('G2').value = new Date().getFullYear();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Plantilla_Cofrades.xlsx');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -56,90 +54,79 @@ router.get('/template', async (req, res) => {
   }
 });
 
+// Listar todos
 router.get('/', async (req, res) => {
   try {
     const cofrades = await knex('cofrades')
-      .select(
-        'cofrades.*',
-        'cofradia.nickname_cofradia'
-      )
+      .select('cofrades.*', 'cofradia.nickname_cofradia')
       .leftJoin('cofradia', 'cofrades.cod_cofradia', 'cofradia.id')
+      .orderBy('cofrades.anio', 'desc') // Ordenar por año primero
       .orderBy('cofrades.id', 'desc');
 
     res.json(cofrades);
   } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo los cofrades',
-      details: err.message || err
-    });
+    res.status(500).json({ error: 'Error obteniendo los cofrades', details: err.message });
   }
 });
 
+// Obtener uno
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
     const cofrade = await knex('cofrades')
-      .select(
-        'cofrades.*',
-        'cofradia.nickname_cofradia'
-      )
+      .select('cofrades.*', 'cofradia.nickname_cofradia')
       .leftJoin('cofradia', 'cofrades.cod_cofradia', 'cofradia.id')
       .where('cofrades.id', id)
       .first();
 
-    if (!cofrade) {
-      return res.status(404).json({ error: 'Cofrade no encontrado' });
-    }
-
+    if (!cofrade) return res.status(404).json({ error: 'Cofrade no encontrado' });
     res.json(cofrade);
   } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo el cofrade',
-      details: err.message || err
-    });
+    res.status(500).json({ error: 'Error obteniendo el cofrade', details: err.message });
   }
 });
 
-// Cargar datos por excel
+// Cargar datos por excel (Bulk Upload)
 router.post('/bulk-upload', upload.single('file'), async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(req.file.path);
     const worksheet = workbook.getWorksheet(1);
     const failedRecords = [];
+    const currentYear = new Date().getFullYear();
 
     for (let i = 2; i <= worksheet.rowCount; i++) {
       const row = worksheet.getRow(i);
+      
+      // Si la fila está vacía, saltar
+      if (!row.getCell(1).value && !row.getCell(2).value) continue;
 
-      // Leer valores de las celdas
       const dni_cofrade = row.getCell(1).value ? row.getCell(1).value.toString().trim() : null;
       const nombres_apellidos = row.getCell(2).value ? row.getCell(2).value.toString().trim() : null;
       const celular = row.getCell(3).value ? row.getCell(3).value.toString().trim() : null;
       const personaje_cofradia = row.getCell(4).value ? row.getCell(4).value.toString().trim() : 'ninguno';
       const cargo_cofrade = row.getCell(5).value ? row.getCell(5).value.toString().trim() : 'ninguno';
-      const ruta_foto = row.getCell(7).value ? row.getCell(7).value.toString().trim() : null;
-
-      // 🔹 SOLUCIÓN: Convertimos cod_cofradia correctamente
+      
+      // Manejo de cod_cofradia
       let cod_cofradia = row.getCell(6).value;
+      if (cod_cofradia && typeof cod_cofradia === 'object') cod_cofradia = cod_cofradia.result;
+      cod_cofradia = cod_cofradia ? parseInt(cod_cofradia.toString().trim(), 10) : null;
 
-      if (cod_cofradia) {
-        if (typeof cod_cofradia === 'object' && cod_cofradia.result) {
-          cod_cofradia = cod_cofradia.result; // Si ExcelJS detecta una fórmula, obtenemos el resultado
-        }
+      // Manejo de AÑO (Columna 7 en el orden visual de lectura, asumiendo foto va al final o se omite en excel simple)
+      // Ajuste: En la plantilla definimos Anio como ultima columna.
+      // Celda 7 era Foto en tu código anterior, ahora Anio es la 7 según COFRADE_COLUMNS arriba.
+      // Si usas la plantilla nueva: 1:DNI, 2:Nom, 3:Cel, 4:Pers, 5:Cargo, 6:Cod, 7:ANIO
+      let anio = row.getCell(7).value;
+      if (anio && typeof anio === 'object') anio = anio.result;
+      anio = anio ? parseInt(anio.toString().trim(), 10) : currentYear;
 
-        cod_cofradia = cod_cofradia.toString().trim(); // Convertimos a String y eliminamos espacios
-        cod_cofradia = parseInt(cod_cofradia, 10); // Convertimos a número entero
-      }
-
-      // Verificar si la cofradía existe en la BD antes de insertar
+      // Validar cofradía
       const cofradiaExists = await knex('cofradia').where('id', cod_cofradia).first();
       if (!cofradiaExists) {
-        console.warn(`Fila ${i} ignorada: Cofradía con ID ${cod_cofradia} no existe.`);
+        failedRecords.push({ dni_cofrade, nombres_apellidos, error: `Cofradía ID ${cod_cofradia} no existe` });
         continue;
       }
 
-      // Insertar el registro
       try {
         await knex('cofrades').insert({
           dni_cofrade,
@@ -147,55 +134,36 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
           celular,
           personaje_cofradia,
           cargo_cofrade,
-          ruta_foto,
           cod_cofradia,
+          anio: anio, // Insertamos el año
+          ruta_foto: null // Por excel no subimos foto binaria
         });
       } catch (error) {
-        console.error(`Error en fila ${i}:`, error.message);
-        failedRecords.push({ dni_cofrade, nombres_apellidos, celular, cod_cofradia });
+        console.error(`Error fila ${i}:`, error.message);
+        failedRecords.push({ dni_cofrade, nombres_apellidos, error: error.message });
       }
     }
 
-    fs.unlink(req.file.path, (err) => {
-      if (err) console.error('Error eliminando archivo temporal:', err.message);
-    });
+    fs.unlink(req.file.path, () => {}); // Borrar temporal
 
     if (failedRecords.length > 0) {
-      const failedWorkbook = new ExcelJS.Workbook();
-      const failedWorksheet = failedWorkbook.addWorksheet('Errores');
-
-      failedWorksheet.columns = COFRADE_COLUMNS;
-      failedWorksheet.getRow(1).font = { bold: true };
-
-      failedRecords.forEach((record) => {
-        failedWorksheet.addRow(record);
+      return res.status(207).json({ 
+        message: 'Carga completada con errores', 
+        failedRecords 
       });
-
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', 'attachment; filename=Errores_Carga_Cofrades.xlsx');
-
-      await failedWorkbook.xlsx.write(res);
-      return res.end();
     }
 
     res.status(200).json({ message: 'Datos cargados correctamente.' });
 
   } catch (err) {
-    console.error('Error al procesar el archivo:', err.message);
-    res.status(500).json({ error: 'Error al procesar el archivo', details: err.message });
+    console.error('Error procesando archivo:', err);
+    res.status(500).json({ error: 'Error procesando archivo', details: err.message });
   }
 });
 
+// Crear Cofrade (POST)
 router.post('/', upload_storage.single('foto'), async (req, res) => {
-  const {
-    dni_cofrade,
-    nombres_apellidos,
-    celular,
-    personaje_cofradia,
-    cargo_cofrade,
-    cod_cofradia
-  } = req.body;
-
+  const { dni_cofrade, nombres_apellidos, celular, personaje_cofradia, cargo_cofrade, cod_cofradia, anio } = req.body;
   const ruta_foto = req.file ? `uploads/cofrades/${req.file.filename}` : null;
 
   try {
@@ -206,103 +174,68 @@ router.post('/', upload_storage.single('foto'), async (req, res) => {
       personaje_cofradia,
       cargo_cofrade,
       ruta_foto,
-      cod_cofradia
+      cod_cofradia,
+      anio: anio || new Date().getFullYear() // Default año actual
     });
 
-    const newCofradeId = result[0];
-
-    res.status(201).json({
-      message: 'Cofrade registrado con éxito',
-      id: newCofradeId
-    });
-
+    res.status(201).json({ message: 'Cofrade registrado', id: result[0] });
   } catch (err) {
-    res.status(500).json({
-      error: 'Error registrando al cofrade',
-      details: err.message || err
-    });
+    res.status(500).json({ error: 'Error registrando', details: err.message });
   }
 });
 
+// Editar Cofrade (PUT)
 router.put('/:id', upload_storage.single('foto'), async (req, res) => {
   const { id } = req.params;
-  const {
-    dni_cofrade,
-    nombres_apellidos,
-    celular,
-    personaje_cofradia,
-    cargo_cofrade,
-    cod_cofradia
-  } = req.body;
+  const { dni_cofrade, nombres_apellidos, celular, personaje_cofradia, cargo_cofrade, cod_cofradia, anio } = req.body;
 
   try {
     const cofrade = await knex('cofrades').where('id', id).first();
-    const oldFotoRuta = cofrade ? cofrade.ruta_foto : null;
+    if (!cofrade) return res.status(404).json({ error: 'No encontrado' });
 
-    if (oldFotoRuta) {
-      const oldFilePath = path.join(__dirname, '..', 'public', oldFotoRuta);
-
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    // Manejo de foto (borrar anterior si hay nueva)
+    let ruta_foto = undefined;
+    if (req.file) {
+      ruta_foto = `uploads/cofrades/${req.file.filename}`;
+      if (cofrade.ruta_foto) {
+        const oldPath = path.join(__dirname, '..', 'public', cofrade.ruta_foto);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
     }
 
-    const ruta_foto = req.file ? `uploads/cofrades/${req.file.filename}` : null;
-
-    const updatedCofrade = await knex('cofrades')
-      .where('id', id)
-      .update({
-        dni_cofrade,
-        nombres_apellidos,
-        celular,
-        personaje_cofradia,
-        cargo_cofrade,
-        ruta_foto: ruta_foto || knex.raw('ruta_foto'),
-        cod_cofradia
-      });
-
-    if (updatedCofrade === 0) {
-      return res.status(404).json({ error: 'Cofrade no encontrado' });
-    }
-
-    res.json({ message: 'Cofrade actualizado con éxito' });
-  } catch (err) {
-    res.status(500).json({
-      error: 'Error actualizando al cofrade',
-      details: err.message || err
+    await knex('cofrades').where('id', id).update({
+      dni_cofrade,
+      nombres_apellidos,
+      celular,
+      personaje_cofradia,
+      cargo_cofrade,
+      cod_cofradia,
+      anio,
+      ...(ruta_foto && { ruta_foto }) // Solo actualiza foto si se envió una nueva
     });
+
+    res.json({ message: 'Cofrade actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando', details: err.message });
   }
 });
 
+// Eliminar Cofrade (DELETE)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const cofrade = await knex('cofrades').where('id', id).first();
-    const ruta_foto = cofrade ? cofrade.ruta_foto : null;
+    if (!cofrade) return res.status(404).json({ error: 'No encontrado' });
 
-    if (ruta_foto) {
-      const filePath = path.join(__dirname, '..', 'public', ruta_foto);
-
-      try {
-        // Intentamos eliminar el archivo
-        await fs.promises.unlink(filePath);
-      } catch (err) {
-        return res.status(500).json({ error: "Error eliminando el archivo", details: err.message || err });
-      }
+    if (cofrade.ruta_foto) {
+      const filePath = path.join(__dirname, '..', 'public', cofrade.ruta_foto);
+      if (fs.existsSync(filePath)) await fs.promises.unlink(filePath);
     }
 
-    const deletedCofrade = await knex('cofrades').where('id', id).del();
-
-    if (deletedCofrade === 0) {
-      return res.status(404).json({ error: 'Cofrade no encontrado' });
-    }
-
-    res.json({ message: 'Cofrade eliminado con éxito' });
+    await knex('cofrades').where('id', id).del();
+    res.json({ message: 'Cofrade eliminado' });
   } catch (err) {
-    res.status(500).json({
-      error: 'Error eliminando al cofrade',
-      details: err.message || err
-    });
+    res.status(500).json({ error: 'Error eliminando', details: err.message });
   }
 });
 

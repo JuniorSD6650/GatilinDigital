@@ -26,8 +26,8 @@ export default function Home() {
       </header>
 
       {/* Grid de Menú con Pañuelos */}
-      {/* Usamos 'md:grid-cols-2' para mantener los pares de colores por fila */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12 w-full max-w-4xl px-4 justify-items-center animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150 relative z-10">
+      {/* Siempre 2 columnas, ajustamos tamaños para móviles */}
+      <div className="grid grid-cols-2 gap-y-4 gap-x-4 md:gap-x-12 w-full max-w-4xl px-4 justify-items-center animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150 relative z-10">
         {NAV_LINKS.map((item) => (
           <SectionCard 
             key={item.name}

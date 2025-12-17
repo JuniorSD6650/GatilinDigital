@@ -68,6 +68,71 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
         }
     }, [detail.id]);
 
+    /* // Función para generar y descargar el tríptico (2 páginas)
+    const handleDownloadTriptico = async () => {
+        if (!tripticoRef.current || generatingPDF) return;
+        
+        setGeneratingPDF(true);
+        
+        try {
+            // Hacer visible el tríptico temporalmente
+            tripticoRef.current.style.display = 'block';
+            
+            // Obtener ambas páginas del tríptico
+            const pages = tripticoRef.current.children;
+            
+            if (pages.length < 2) {
+                throw new Error('No se encontraron las 2 páginas del tríptico');
+            }
+            
+            // Crear PDF en formato horizontal (A4 landscape)
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            // Capturar y agregar la primera cara (página 1)
+            const canvas1 = await html2canvas(pages[0] as HTMLElement, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#121212'
+            });
+            
+            const imgData1 = canvas1.toDataURL('image/png');
+            pdf.addImage(imgData1, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            
+            // Agregar nueva página para la segunda cara
+            pdf.addPage();
+            
+            // Capturar y agregar la segunda cara (página 2)
+            const canvas2 = await html2canvas(pages[1] as HTMLElement, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#121212'
+            });
+            
+            const imgData2 = canvas2.toDataURL('image/png');
+            pdf.addImage(imgData2, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            
+            // Ocultar nuevamente
+            tripticoRef.current.style.display = 'none';
+            
+            // Descargar el PDF
+            pdf.save(`triptico-${detail.nickname_cofradia.replace(/\s+/g, '-')}.pdf`);
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            alert('Hubo un error al generar el tríptico. Por favor intenta nuevamente.');
+        } finally {
+            setGeneratingPDF(false);
+        }
+    }; */
+
     if (loading) {
         return (
             <div className="min-h-screen pb-20 animate-in fade-in zoom-in-95 duration-300 relative">
@@ -239,25 +304,22 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
 
                         {/* 4. SECCIÓN: CRONOGRAMA DE EVENTOS */}
                         {eventos.length > 0 && (
-                            <div className="space-y-6">
-                                <div className="text-center space-y-2">
-                                    <h3
-                                        className="text-2xl font-display font-bold uppercase tracking-widest inline-block pb-2 border-b-4"
-                                        style={{ color: displayColor, borderColor: displayColor }}
-                                    >
-                                        🎉 Cronograma de Actividades
-                                    </h3>
-                                    <p className="text-gray-400">Únete a nosotros en cada evento</p>
-                                </div>
+                            <div className="space-y-4">
+                                <h3
+                                    className="text-xl md:text-2xl font-display font-bold uppercase tracking-wider text-center inline-block pb-1 border-b-2"
+                                    style={{ color: displayColor, borderColor: displayColor }}
+                                >
+                                    🎉 Cronograma
+                                </h3>
 
                                 {loadingEventos ? (
-                                    <div className="space-y-4">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="h-32 bg-white/5 rounded-2xl animate-pulse" />
+                                    <div className="space-y-2">
+                                        {[1, 2].map(i => (
+                                            <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="space-y-3">
                                         {/* Agrupar eventos por fecha */}
                                         {Object.entries(
                                             eventos.reduce((acc, evento) => {
@@ -269,7 +331,6 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                             }, {} as Record<string, Evento[]>)
                                         )
                                         .sort(([dateA], [dateB]) => {
-                                            // Ordenar por fecha (formato dd/MM/yyyy)
                                             const [dayA, monthA, yearA] = dateA.split('/').map(Number);
                                             const [dayB, monthB, yearB] = dateB.split('/').map(Number);
                                             const dateObjA = new Date(yearA, monthA - 1, dayA);
@@ -278,112 +339,87 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                         })
                                         .map(([fecha, eventosDelDia]) => (
                                             <div key={fecha} className="relative">
-                                                {/* Línea temporal vertical */}
-                                                <div 
-                                                    className="absolute left-8 top-0 bottom-0 w-1 hidden md:block"
-                                                    style={{ backgroundColor: `${displayColor}30` }}
-                                                />
-
-                                                {/* Header de Fecha */}
-                                                <div className="flex items-center gap-4 mb-4 relative z-10">
+                                                {/* Header de Fecha - más compacto */}
+                                                <div className="flex items-center gap-2 md:gap-3 mb-2">
                                                     <div 
-                                                        className="flex items-center justify-center w-16 h-16 rounded-2xl shadow-lg font-bold text-white"
+                                                        className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-xl shadow-md font-bold text-white flex-shrink-0"
                                                         style={{ backgroundColor: displayColor }}
                                                     >
                                                         <div className="text-center">
-                                                            <div className="text-2xl leading-none">{fecha.split('/')[0]}</div>
-                                                            <div className="text-xs opacity-80">{fecha.split('/')[1]}</div>
+                                                            <div className="text-lg md:text-xl leading-none">{fecha.split('/')[0]}</div>
+                                                            <div className="text-[10px] opacity-70">{fecha.split('/')[1]}</div>
                                                         </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-lg font-bold text-white">{eventosDelDia[0].tipo_dia}</p>
-                                                        <p className="text-sm text-gray-500">{fecha}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm md:text-base font-bold text-white truncate">{eventosDelDia[0].tipo_dia}</p>
+                                                        <p className="text-xs text-gray-500">{fecha}</p>
                                                     </div>
                                                 </div>
 
-                                                {/* Eventos del día */}
-                                                <div className="md:ml-24 space-y-4">
+                                                {/* Eventos del día - Grid de 2 columnas */}
+                                                <div className="ml-0 md:ml-2 grid grid-cols-2 gap-2">
                                                     {eventosDelDia
                                                         .sort((a, b) => a.hora.localeCompare(b.hora))
                                                         .map((evento) => (
                                                         <div
                                                             key={evento.id}
-                                                            className="relative bg-gradient-to-br from-negrito-card to-neutral-900 border border-white/10 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
+                                                            className="relative bg-gradient-to-br from-negrito-card to-neutral-900/50 border border-white/10 rounded-lg p-2 md:p-3 hover:border-white/20 transition-all"
                                                         >
-                                                            {/* Hora destacada */}
-                                                            <div className="absolute -left-3 top-6 md:left-auto md:-right-3 bg-negrito-bg px-4 py-2 rounded-xl border-2 shadow-lg"
-                                                                style={{ borderColor: displayColor }}
+                                                            {/* Hora */}
+                                                            <div 
+                                                                className="px-1.5 py-0.5 rounded font-bold text-xs mb-1.5 inline-block"
+                                                                style={{ 
+                                                                    backgroundColor: `${displayColor}20`,
+                                                                    color: displayColor
+                                                                }}
                                                             >
-                                                                <p className="text-lg font-bold" style={{ color: displayColor }}>
-                                                                    {evento.hora.substring(0, 5)}
-                                                                </p>
+                                                                {evento.hora.substring(0, 5)}
                                                             </div>
 
-                                                            <div className="ml-20 md:ml-0 space-y-4">
-                                                                {/* Tipo de evento */}
-                                                                <div className="flex items-start gap-3">
-                                                                    <span className="text-3xl">📍</span>
-                                                                    <div className="flex-1">
-                                                                        <h4 className="text-xl font-bold text-white group-hover:translate-x-1 transition-transform">
-                                                                            {evento.tipo_evento}
-                                                                        </h4>
-                                                                        {evento.tipo_dia && (
-                                                                            <p className="text-sm text-gray-500 mt-1">
-                                                                                {evento.tipo_dia}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                                                            {/* Contenido compacto */}
+                                                            <div className="space-y-1">
+                                                                {/* Título */}
+                                                                <h4 className="text-xs md:text-sm font-bold text-white leading-tight line-clamp-2">
+                                                                    {evento.tipo_evento}
+                                                                </h4>
 
                                                                 {/* Dirección */}
                                                                 {evento.direccion_actividad && (
-                                                                    <div className="bg-white/5 rounded-xl p-3 flex items-start gap-2">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
+                                                                    <div className="flex items-start gap-1">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
                                                                             <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                                                                         </svg>
-                                                                        <div>
-                                                                            <p className="text-xs text-gray-500 uppercase tracking-wide">Dirección</p>
-                                                                            <p className="text-white font-medium">{evento.direccion_actividad}</p>
-                                                                        </div>
+                                                                        <span className="text-[10px] md:text-xs text-gray-400 leading-tight line-clamp-1">{evento.direccion_actividad}</span>
                                                                     </div>
                                                                 )}
-
-                                                                {/* Detalles adicionales */}
-                                                                <div className="space-y-2">
-                                                                    {/* Oferente */}
-                                                                    {(evento.tipo_oferente || evento.oferente) && (
-                                                                        <div className="bg-white/5 rounded-xl p-3">
-                                                                            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ofrece</p>
-                                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                                {evento.tipo_oferente && (
-                                                                                    <span 
-                                                                                        className="text-xs px-2 py-1 rounded-full font-bold"
-                                                                                        style={{ 
-                                                                                            backgroundColor: `${displayColor}20`,
-                                                                                            color: displayColor
-                                                                                        }}
-                                                                                    >
-                                                                                        {evento.tipo_oferente}
-                                                                                    </span>
-                                                                                )}
-                                                                                {evento.oferente && (
-                                                                                    <span className="text-white font-medium">{evento.oferente}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    
-                                                                    {/* Banda */}
-                                                                    {evento.banda && evento.banda !== 'Ninguna' && (
-                                                                        <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
-                                                                            <span className="text-2xl">🎵</span>
-                                                                            <div>
-                                                                                <p className="text-xs text-gray-500 uppercase tracking-wide">Banda</p>
-                                                                                <p className="text-white font-medium">{evento.banda}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
+                                                                
+                                                                {/* Oferente */}
+                                                                {(evento.tipo_oferente || evento.oferente) && (
+                                                                    <div className="text-[10px] md:text-xs text-gray-400 truncate">
+                                                                        {evento.tipo_oferente && (
+                                                                            <span 
+                                                                                className="text-[9px] px-1 py-0.5 rounded font-bold uppercase mr-1"
+                                                                                style={{ 
+                                                                                    backgroundColor: `${displayColor}15`,
+                                                                                    color: displayColor
+                                                                                }}
+                                                                            >
+                                                                                {evento.tipo_oferente}
+                                                                            </span>
+                                                                        )}
+                                                                        {evento.oferente && (
+                                                                            <span>{evento.oferente}</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {/* Banda */}
+                                                                {evento.banda && evento.banda !== 'Ninguna' && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs">🎵</span>
+                                                                        <span className="text-[10px] md:text-xs text-gray-400 truncate">{evento.banda}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -393,20 +429,19 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                     </div>
                                 )}
 
-                                {/* Call to Action */}
+                                {/* Call to Action - compacto */}
                                 <div 
-                                    className="relative overflow-hidden text-center p-8 rounded-2xl border-2"
+                                    className="text-center p-4 md:p-6 rounded-xl border"
                                     style={{ 
                                         backgroundColor: `${displayColor}10`,
-                                        borderColor: displayColor
+                                        borderColor: `${displayColor}50`
                                     }}
                                 >
-                                    <div className="absolute top-0 right-0 text-9xl opacity-10">🎭</div>
-                                    <h4 className="text-2xl font-bold mb-2" style={{ color: displayColor }}>
-                                        ¡Ven y Participa!
-                                    </h4>
-                                    <p className="text-gray-300 max-w-2xl mx-auto">
-                                        Únete a nosotros en cada evento y vive la tradición huanuqueña. ¡Te esperamos con los brazos abiertos!
+                                    <p className="text-base md:text-lg font-bold mb-1" style={{ color: displayColor }}>
+                                        ¡Únete a nosotros! 🎭
+                                    </p>
+                                    <p className="text-xs md:text-sm text-gray-300">
+                                        Vive la tradición en cada evento
                                     </p>
                                 </div>
                             </div>

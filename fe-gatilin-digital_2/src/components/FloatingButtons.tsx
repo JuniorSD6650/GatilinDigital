@@ -74,7 +74,6 @@ export default function FloatingButtons() {
   };
 
   const stopDrag = () => {
-    activeDrag.current = null;
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
     document.removeEventListener('touchmove', onTouchMove);

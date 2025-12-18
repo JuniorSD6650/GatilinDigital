@@ -90,8 +90,8 @@ export default function FestivalPage() {
                 🏆 Podio de Honor
               </h2>
               
-              {/* Grid de Podio - Responsive */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {/* Podio Responsive - Horizontal en móvil, Grid en desktop */}
+              <div className="flex flex-row items-end justify-center gap-2 md:grid md:grid-cols-3 md:gap-6 mb-12">
                 {top3Posiciones.map(([votos, cofradias], posicionIndex) => {
                   const posicion = posicionIndex + 1;
                   const medalConfig = getMedalConfig(posicion);
@@ -100,29 +100,31 @@ export default function FestivalPage() {
                     <div 
                       key={`posicion-${posicion}`}
                       className={`
-                        ${posicion === 1 ? 'md:order-2 md:scale-110 md:mt-0' : ''}
-                        ${posicion === 2 ? 'md:order-1 md:mt-8' : ''}
-                        ${posicion === 3 ? 'md:order-3 md:mt-8' : ''}
+                        flex-1 max-w-[33%] md:max-w-none
+                        ${posicion === 1 ? 'order-2 md:scale-110 md:mt-0' : ''}
+                        ${posicion === 2 ? 'order-1 md:mt-8' : ''}
+                        ${posicion === 3 ? 'order-3 md:mt-8' : ''}
+                        ${posicion === 1 ? 'mt-0' : posicion === 2 ? 'mt-8' : 'mt-12'}
                       `}
                     >
                       {/* Contenedor del podio */}
                       <div className="relative">
                         {/* Número de posición flotante */}
                         <div className={`
-                          absolute -top-6 left-1/2 -translate-x-1/2 z-20
-                          text-6xl drop-shadow-2xl animate-float
+                          absolute -top-4 md:-top-6 left-1/2 -translate-x-1/2 z-20
+                          text-4xl md:text-6xl drop-shadow-2xl animate-float
                         `}>
                           {medalConfig.emoji}
                         </div>
 
                         {/* Tarjetas de cofradías en esta posición */}
-                        <div className="space-y-3 pt-8">
+                        <div className="space-y-2 md:space-y-3 pt-6 md:pt-8">
                           {cofradias.map((cofradia) => (
                             <div
                               key={cofradia.id}
                               className={`
                                 relative bg-gradient-to-br ${medalConfig.color}
-                                rounded-2xl p-6 border-2 border-white/20
+                                rounded-xl md:rounded-2xl p-3 md:p-6 border-2 border-white/20
                                 shadow-2xl ${medalConfig.shadow}
                                 transform transition-all duration-300
                                 hover:scale-105 hover:-translate-y-1
@@ -133,27 +135,27 @@ export default function FestivalPage() {
                               }}
                             >
                               {/* Brillo superior */}
-                              <div className="absolute inset-0 bg-white/10 rounded-2xl opacity-0 hover:opacity-20 transition-opacity" />
+                              <div className="absolute inset-0 bg-white/10 rounded-xl md:rounded-2xl opacity-0 hover:opacity-20 transition-opacity" />
                               
                               {/* Contenido */}
                               <div className="relative z-10 text-center text-white">
-                                <div className="text-xl font-bold mb-2 drop-shadow-lg">
+                                <div className="text-xs md:text-xl font-bold mb-1 md:mb-2 drop-shadow-lg leading-tight line-clamp-2">
                                   {cofradia.nickname_cofradia}
                                 </div>
                                 
                                 {/* Color de la cofradía */}
-                                <div className="flex items-center justify-center gap-2 mb-3">
+                                <div className="flex items-center justify-center gap-1 md:gap-2 mb-2 md:mb-3">
                                   <div 
-                                    className="w-6 h-6 rounded-full border-2 border-white shadow-lg"
+                                    className="w-3 h-3 md:w-6 md:h-6 rounded-full border border-white md:border-2 shadow-lg"
                                     style={{ backgroundColor: cofradia.color }}
                                   />
                                 </div>
 
                                 {/* Votos */}
-                                <div className="flex items-center justify-center gap-2 text-2xl font-bold">
-                                  <span>❤️</span>
+                                <div className="flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 text-base md:text-2xl font-bold">
+                                  <span className="text-sm md:text-2xl">❤️</span>
                                   <span>{votos}</span>
-                                  <span className="text-sm font-normal opacity-90">
+                                  <span className="text-[10px] md:text-sm font-normal opacity-90">
                                     {Number(votos) === 1 ? 'voto' : 'votos'}
                                   </span>
                                 </div>
@@ -164,9 +166,9 @@ export default function FestivalPage() {
 
                         {/* Base del podio */}
                         <div className={`
-                          mt-4 rounded-b-xl bg-gradient-to-b ${medalConfig.color}
+                          mt-2 md:mt-4 rounded-b-xl bg-gradient-to-b ${medalConfig.color}
                           opacity-30 backdrop-blur-sm
-                          ${posicion === 1 ? 'h-32' : posicion === 2 ? 'h-24' : 'h-20'}
+                          ${posicion === 1 ? 'h-20 md:h-32' : posicion === 2 ? 'h-16 md:h-24' : 'h-12 md:h-20'}
                         `} />
                       </div>
                     </div>

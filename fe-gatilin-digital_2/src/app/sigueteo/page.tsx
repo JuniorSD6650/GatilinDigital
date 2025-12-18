@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import BackButton from "@/components/BackButton";
 import SectionHeader from "@/components/SectionHeader";
 import CofradiaDetail from "@/components/CofradiaDetail";
@@ -43,6 +43,9 @@ function SigueteoContent() {
   // --- ESTADOS DE DETALLE ---
   const [detail, setDetail] = useState<CofradiaDetalle | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Router para navegación
+  const router = useRouter();
 
   // 1. Cargar Lista
   useEffect(() => {
@@ -99,7 +102,11 @@ function SigueteoContent() {
     setSelectedId(id);
     setView('DETAIL');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  };// Limpiar query params de la URL
+    router.push('/sigueteo', { scroll: false });
+    
+    // Limpiar estados
+    
 
   const handleBackToList = () => {
     setSelectedId(null);

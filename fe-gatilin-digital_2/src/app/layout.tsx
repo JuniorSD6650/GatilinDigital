@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+
 import Navbar from "@/components/Navbar";
 import FloatingReportButton from "@/components/FloatingButtons";
 import WelcomeModal from "@/components/WelcomeModal";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Gatilín Digital - Negritos de Huánuco",
@@ -42,6 +44,7 @@ export default function RootLayout({
         <main className="max-w-5xl mx-auto px-4 py-8">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );

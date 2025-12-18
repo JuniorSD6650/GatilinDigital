@@ -127,11 +127,8 @@ export default function WelcomeModal() {
             
             {/* Mensaje principal */}
             <div className="text-center space-y-3">
-              <p className="text-white text-lg md:text-xl font-semibold leading-relaxed">
+              <p className="text-white text-lg md:text-l font-semibold leading-relaxed">
                 ¿Quieres formar parte de esta tradición?
-              </p>
-              <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                Regístrate ahora y sé parte de la cofradía. Participa en eventos, accede a contenido exclusivo y vive la festividad como nunca antes.
               </p>
             </div>
 

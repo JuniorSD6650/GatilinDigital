@@ -47,11 +47,19 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
     const [votos, setVotos] = useState(detail.votos || 0);
     const [votando, setVotando] = useState(false);
     const [haVotadoEnEstaSesion, setHaVotadoEnEstaSesion] = useState(false);
+    const [baseUrl, setBaseUrl] = useState('');
 
     // Fix para color negro: usar #FF007F si es #000 o #000000
     const displayColor = (detail.color === '#000' || detail.color === '#000000' || !detail.color) 
         ? '#FF007F' 
         : detail.color;
+
+    // Obtener la URL base solo en el cliente
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setBaseUrl(window.location.origin);
+        }
+    }, []);
 
     // Cargar eventos de la cofradía
     useEffect(() => {
@@ -106,11 +114,14 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
 
     // Función para compartir en redes sociales
     const handleCompartir = async () => {
-        const url = `${window.location.origin}/sigueteo?cofradia=${detail.id}`;
+        // Verificar que tenemos la URL base
+        if (!baseUrl) return;
+        
+        const url = `${baseUrl}/sigueteo?cofradia=${detail.id}`;
         const texto = `¡Vota por ${detail.nickname_cofradia}! 🎭✨\n\nApoya a mi cuadrilla favorita en la festividad.`;
 
         // Usar Web Share API si está disponible (móviles)
-        if (navigator.share) {
+        if (typeof navigator !== 'undefined' && navigator.share) {
             try {
                 await navigator.share({
                     title: `Vota por ${detail.nickname_cofradia}`,
@@ -123,7 +134,7 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                     console.error('Error compartiendo:', error);
                 }
             }
-        } else {
+        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
             // Fallback: copiar al portapapeles
             try {
                 await navigator.clipboard.writeText(`${texto}\n\n${url}`);

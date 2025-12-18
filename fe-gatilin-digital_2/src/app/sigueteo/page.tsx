@@ -1,5 +1,8 @@
 'use client';
 
+// Desactivar pre-renderizado estático para esta página
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import BackButton from "@/components/BackButton";
@@ -101,7 +104,9 @@ function SigueteoContent() {
   const handleSelectCofradia = (id: number) => {
     setSelectedId(id);
     setView('DETAIL');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };// Limpiar query params de la URL
     router.push('/sigueteo', { scroll: false });
     

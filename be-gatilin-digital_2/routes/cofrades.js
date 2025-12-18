@@ -54,6 +54,24 @@ router.get('/template', async (req, res) => {
   }
 });
 
+// Listar cofrades por cofradía (para frontend público)
+router.get('/by-cofradia/:cofradiaId', async (req, res) => {
+  const { cofradiaId } = req.params;
+  try {
+    const cofrades = await knex('cofrades')
+      .select('cofrades.*', 'cofradia.nickname_cofradia', 'cofradia.color')
+      .leftJoin('cofradia', 'cofrades.cod_cofradia', 'cofradia.id')
+      .where('cofrades.cod_cofradia', cofradiaId)
+      .orderBy('cofrades.anio', 'desc')
+      .orderBy('cofrades.cargo_cofrade', 'asc')
+      .orderBy('cofrades.nombres_apellidos', 'asc');
+
+    res.json(cofrades);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo cofrades de la cofradía', details: err.message });
+  }
+});
+
 // Listar todos
 router.get('/', async (req, res) => {
   try {

@@ -124,6 +124,35 @@ export const getRankingCofradias = async (): Promise<CofradiaRanking[]> => {
   }
 };
 
+// --- SECCIÓN COFRADES ---
+export interface Cofrade {
+  id: number;
+  dni_cofrade: string;
+  nombres_apellidos: string;
+  celular: string | null;
+  personaje_cofradia: string;
+  cargo_cofrade: string;
+  ruta_foto: string | null;
+  cod_cofradia: number;
+  anio: number;
+  nickname_cofradia?: string;
+  color?: string;
+}
+
+export const getCofradesbyCofradia = async (cofradiaId: number): Promise<Cofrade[]> => {
+  try {
+    const response = await fetch(`${API_URL}/cofrades/by-cofradia/${cofradiaId}`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error obteniendo cofrades de cofradía ${cofradiaId}:`, error);
+    return [];
+  }
+};
+
 // --- SECCIÓN EVENTOS (Cronograma de Cofradías) ---
 export interface Evento {
   id: number;

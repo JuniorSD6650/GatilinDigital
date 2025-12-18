@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { type CofradiaDetalle, type Evento, getEventosByCofradiaId, votarCofradia, quitarVotoCofradia } from '@/services/apis/api-normal';
+import CofradesSection from './CofradesSection';
 
 // Función auxiliar para formatear tiempo relativo
 const formatRelativeTime = (dateString: string) => {
@@ -611,6 +612,9 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                 </div>
                             </div>
                         )}
+
+                        {/* 5. SECCIÓN: COFRADES/INTEGRANTES */}
+                        <CofradesSection cofradiaId={detail.id} cofradiaColor={displayColor} />
 
                     </div>
                 </div>

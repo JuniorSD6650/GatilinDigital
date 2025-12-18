@@ -124,6 +124,54 @@ export const getRankingCofradias = async (): Promise<CofradiaRanking[]> => {
   }
 };
 
+// --- SECCIÓN FESTIVAL OFICIAL (Cronograma) ---
+export interface FestivalEvento {
+  id: number;
+  fecha: string;
+  hora_inicio: string;
+  hora_texto: string;
+  nombre_cofradia: string;
+  lugar: string;
+  tipo_actividad: string;
+  estado: string;
+}
+
+export interface FestivalDia {
+  fecha: string;
+}
+
+export const getFestivalEventos = async (fecha?: string): Promise<FestivalEvento[]> => {
+  try {
+    const url = fecha 
+      ? `${API_URL}/festival?fecha=${fecha}` 
+      : `${API_URL}/festival`;
+    
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo eventos del festival:", error);
+    return [];
+  }
+};
+
+export const getFestivalDias = async (): Promise<FestivalDia[]> => {
+  try {
+    const response = await fetch(`${API_URL}/festival/dias`, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo días del festival:", error);
+    return [];
+  }
+};
+
 // --- SECCIÓN COFRADES ---
 export interface Cofrade {
   id: number;

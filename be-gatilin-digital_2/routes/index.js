@@ -6,7 +6,8 @@ const organizacionRoutes = require('./organizacion');
 const cofradiaRoutes = require('./cofradia'); 
 const cofradesRoutes = require('./cofrades'); 
 const eventosRoutes = require('./eventos');
-const reportesRoutes = require('./reportes'); 
+const reportesRoutes = require('./reportes');
+const festivalRoutes = require('./festival');
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use('/cofradia', cofradiaRoutes);
 router.use('/cofrades', cofradesRoutes);
 router.use('/eventos', eventosRoutes);
 router.use('/reportes', reportesRoutes);
+router.use('/festival', festivalRoutes);
 
 module.exports = router;

@@ -27,6 +27,7 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(getDefaultYear());
+  const [tipoSeleccionado, setTipoSeleccionado] = useState<'bailantes' | 'sociales'>('bailantes');
 
   useEffect(() => {
     const fetchCofrades = async () => {
@@ -121,35 +122,22 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
     !c.cargo_cofrade?.toLowerCase().includes('bailant')
   );
 
-  // Crear grupos
-  const grupos: Array<{ personaje: string; cargo: string; cofrades: Cofrade[] }> = [];
+  // Ordenar bailantes alfabéticamente
+  const bailantesOrdenados = bailantes.sort((a, b) => a.nombres_apellidos.localeCompare(b.nombres_apellidos));
+  
+  // Ordenar sociales: primero los que tienen cargo, luego alfabético
+  const socialesOrdenados = otros.sort((a, b) => {
+    const cargoA = a.cargo_cofrade?.toLowerCase() || 'ninguno';
+    const cargoB = b.cargo_cofrade?.toLowerCase() || 'ninguno';
+    
+    if (cargoA !== 'ninguno' && cargoB === 'ninguno') return -1;
+    if (cargoA === 'ninguno' && cargoB !== 'ninguno') return 1;
+    
+    return a.nombres_apellidos.localeCompare(b.nombres_apellidos);
+  });
 
-  // Grupo de Bailantes
-  if (bailantes.length > 0) {
-    grupos.push({
-      personaje: 'Bailantes',
-      cargo: 'ninguno',
-      cofrades: bailantes.sort((a, b) => a.nombres_apellidos.localeCompare(b.nombres_apellidos))
-    });
-  }
-
-  // Grupo de Otros/Demás
-  if (otros.length > 0) {
-    grupos.push({
-      personaje: 'Sociales',
-      cargo: 'ninguno',
-      cofrades: otros.sort((a, b) => {
-        // Primero los que tienen cargo (no "ninguno"), luego alfabético
-        const cargoA = a.cargo_cofrade?.toLowerCase() || 'ninguno';
-        const cargoB = b.cargo_cofrade?.toLowerCase() || 'ninguno';
-        
-        if (cargoA !== 'ninguno' && cargoB === 'ninguno') return -1;
-        if (cargoA === 'ninguno' && cargoB !== 'ninguno') return 1;
-        
-        return a.nombres_apellidos.localeCompare(b.nombres_apellidos);
-      })
-    });
-  }
+  // Seleccionar qué mostrar según la pestaña
+  const cofradesAMostrar = tipoSeleccionado === 'bailantes' ? bailantesOrdenados : socialesOrdenados;
 
   return (
     <div className="space-y-6">
@@ -185,6 +173,48 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
             ))}
           </div>
         )}
+
+        {/* Selector de tipo: Bailantes / Sociales */}
+        {cofradesDelAno.length > 0 && (bailantes.length > 0 && otros.length > 0) && (
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => setTipoSeleccionado('bailantes')}
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all ${
+                tipoSeleccionado === 'bailantes'
+                  ? 'text-white shadow-lg scale-105'
+                  : 'text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10'
+              }`}
+              style={
+                tipoSeleccionado === 'bailantes'
+                  ? { backgroundColor: cofradiaColor }
+                  : undefined
+              }
+            >
+              <div className="text-center">
+                <div className="text-sm md:text-base">Bailantes</div>
+                <div className="text-xs opacity-70">({bailantes.length})</div>
+              </div>
+            </button>
+            <button
+              onClick={() => setTipoSeleccionado('sociales')}
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all ${
+                tipoSeleccionado === 'sociales'
+                  ? 'text-white shadow-lg scale-105'
+                  : 'text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10'
+              }`}
+              style={
+                tipoSeleccionado === 'sociales'
+                  ? { backgroundColor: cofradiaColor }
+                  : undefined
+              }
+            >
+              <div className="text-center">
+                <div className="text-sm md:text-base">Sociales</div>
+                <div className="text-xs opacity-70">({otros.length})</div>
+              </div>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Mostrar mensaje si no hay cofrades del año seleccionado */}
@@ -192,30 +222,15 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
         <div className="text-center py-8 text-gray-400">
           <p>No hay cofrades registrados para el año {selectedYear}</p>
         </div>
+      ) : cofradesAMostrar.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          <p>No hay {tipoSeleccionado} registrados para este año</p>
+        </div>
       ) : (
-        <div className="space-y-6">
-          {grupos.map((grupo, idx) => (
-            <div key={idx} className="space-y-3">
-              {/* Título del grupo - CENTRADO */}
-              <div className="flex items-center justify-center gap-3">
-                <div className="h-px flex-1 bg-white/5" />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm md:text-base font-bold text-white text-center">
-                    {grupo.personaje}
-                  </span>
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded"
-                    style={{ backgroundColor: `${cofradiaColor}20`, color: cofradiaColor }}
-                  >
-                    {grupo.cofrades.length}
-                  </span>
-                </div>
-                <div className="h-px flex-1 bg-white/5" />
-              </div>
-
-              {/* Grid de cofrades - CENTRADO */}
-              <div className="flex flex-wrap justify-center gap-3 max-w-6xl mx-auto">
-                {grupo.cofrades.map((cofrade) => (
+        <div className="space-y-3">
+          {/* Grid de cofrades - CENTRADO */}
+          <div className="flex flex-wrap justify-center gap-3 max-w-6xl mx-auto">
+            {cofradesAMostrar.map((cofrade) => (
                   <div
                     key={cofrade.id}
                     className="w-[calc(50%-0.375rem)] sm:w-[calc(33.333%-0.5rem)] lg:w-[calc(25%-0.5625rem)] group bg-gradient-to-br from-neutral-900 to-black rounded-lg overflow-hidden border border-white/5 hover:border-white/20 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
@@ -240,10 +255,23 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
                           />
                         </div>
                       )}
+                      {/* Cinta de personaje */}
+                      {cofrade.personaje_cofradia && cofrade.personaje_cofradia.toLowerCase() !== 'ninguno' && (
+                        <div
+                          className="absolute left-0 bottom-0 px-2 py-1 bg-black/70 rounded-tr-lg text-[10px] sm:text-xs text-white font-semibold max-w-[80%] truncate shadow-lg"
+                          style={{
+                            borderTopRightRadius: '0.5rem',
+                            fontSize: 'clamp(0.65rem, 1.5vw, 0.85rem)',
+                            zIndex: 2,
+                          }}
+                        >
+                          {cofrade.personaje_cofradia}
+                        </div>
+                      )}
                     </div>
 
                     {/* Info - MÁS COMPACTA */}
-                    <div className="p-2.5 sm:p-3 space-y-1.5">
+                    <div className="p-2.5 sm:p-3 space-y-1.5 flex flex-col">
                       <h4
                         className="font-bold text-white text-xs sm:text-sm md:text-base leading-tight"
                         style={{
@@ -251,40 +279,20 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
                           wordBreak: 'break-word',
                           whiteSpace: 'normal',
                           lineHeight: 1.2,
-                          maxHeight: '2.6em',
-                          overflow: 'visible',
-                          textOverflow: 'unset',
-                          display: 'block',
+                          maxHeight: '5.5em',
+                          overflow: 'hidden',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 5,
+                          WebkitBoxOrient: 'vertical',
+                          minHeight: '2.4em',
                         }}
                       >
                         {cofrade.nombres_apellidos}
                       </h4>
 
-                      {/* Personaje */}
-                      {cofrade.personaje_cofradia && cofrade.personaje_cofradia.toLowerCase() !== 'ninguno' && (
-                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                            className="w-3 h-3 flex-shrink-0"
-                            style={{ color: cofradiaColor }}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z"
-                            />
-                          </svg>
-                          <span className="truncate">{cofrade.personaje_cofradia}</span>
-                        </div>
-                      )}
-
                       {/* Cargo */}
                       {cofrade.cargo_cofrade && cofrade.cargo_cofrade.toLowerCase() !== 'ninguno' && (
-                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs mt-auto pt-1">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
@@ -300,7 +308,7 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
                               d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"
                             />
                           </svg>
-                          <span className="truncate font-semibold" style={{ color: cofradiaColor }}>
+                          <span className="truncate font-semibold" style={{ color: cofradiaColor, maxWidth: '80%' }}>
                             {cofrade.cargo_cofrade}
                           </span>
                         </div>
@@ -330,8 +338,6 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
         </div>
       )}
     </div>

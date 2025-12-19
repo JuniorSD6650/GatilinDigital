@@ -246,7 +246,18 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                     >
                         <div className="absolute inset-0 bg-gradient-to-t from-negrito-card to-transparent opacity-90" />
                         <div className="relative z-10 w-full">
-                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-white drop-shadow-lg leading-tight break-words">
+                            <h1
+                                className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-white drop-shadow-lg leading-tight break-words whitespace-normal"
+                                style={{
+                                    wordBreak: 'break-word',
+                                    whiteSpace: 'normal',
+                                    lineHeight: 1.15,
+                                    maxHeight: '3.5em',
+                                    overflow: 'visible',
+                                    textOverflow: 'unset',
+                                    display: 'block',
+                                }}
+                            >
                                 {detail.nickname_cofradia}
                             </h1>
                         </div>

@@ -149,7 +149,10 @@ export default function FestivalPage() {
         {/* Header con fecha seleccionada */}
         {selectedFecha && (
           <div className="mb-6 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+            <h2
+              className="text-2xl md:text-3xl font-bold text-white mb-2 break-words whitespace-normal leading-tight"
+              style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: 1.2 }}
+            >
               {formatFechaCompleta(selectedFecha)}
             </h2>
             {isToday(selectedFecha) && (
@@ -286,7 +289,19 @@ export default function FestivalPage() {
                     {/* Información principal */}
                     <div className="flex-grow space-y-2">
                       {/* Nombre de la cofradía */}
-                      <h3 className="text-lg md:text-xl font-bold text-white">
+                      <h3
+                        className="text-lg md:text-xl font-bold text-white break-words whitespace-normal leading-tight"
+                        style={{
+                          fontSize: 'clamp(1rem, 2.5vw, 1.35rem)',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'normal',
+                          lineHeight: 1.2,
+                          maxHeight: '3.2em',
+                          overflow: 'visible',
+                          textOverflow: 'unset',
+                          display: 'block',
+                        }}
+                      >
                         {evento.nombre_cofradia}
                       </h3>
                       

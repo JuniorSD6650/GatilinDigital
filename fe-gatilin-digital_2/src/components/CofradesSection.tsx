@@ -233,27 +233,30 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                            className="w-10 h-10 sm:w-12 sm:h-12 text-gray-600"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                            />
-                          </svg>
+                          <img
+                            src="/icons/profile.svg"
+                            alt="Foto de perfil vacía"
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain opacity-80"
+                          />
                         </div>
                       )}
                     </div>
 
                     {/* Info - MÁS COMPACTA */}
                     <div className="p-2.5 sm:p-3 space-y-1.5">
-                      <h4 className="font-bold text-white text-xs sm:text-sm leading-tight line-clamp-2">
+                      <h4
+                        className="font-bold text-white text-xs sm:text-sm md:text-base leading-tight"
+                        style={{
+                          fontSize: 'clamp(0.85rem, 2vw, 1.1rem)',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'normal',
+                          lineHeight: 1.2,
+                          maxHeight: '2.6em',
+                          overflow: 'visible',
+                          textOverflow: 'unset',
+                          display: 'block',
+                        }}
+                      >
                         {cofrade.nombres_apellidos}
                       </h4>
 

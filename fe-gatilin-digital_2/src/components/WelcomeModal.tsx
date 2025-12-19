@@ -100,19 +100,6 @@ export default function WelcomeModal() {
           {/* Header con decoración */}
           <div className="relative bg-gradient-to-r from-yellow-500/20 via-yellow-600/20 to-yellow-500/20 p-8 text-center border-b border-yellow-500/30">
             <div className="absolute inset-0 bg-[url('/icons/btn-matraca-reporte.svg')] opacity-5 bg-center bg-no-repeat bg-contain"></div>
-            
-            {/* Logo */}
-            <div className="relative flex justify-center mb-4">
-              <div className="w-20 h-20 relative">
-                <Image 
-                  src="/logo.svg" 
-                  alt="GatilínDigital" 
-                  width={80}
-                  height={80}
-                  className="w-full h-full drop-shadow-2xl"
-                />
-              </div>
-            </div>
 
             <h2 className="text-3xl md:text-4xl font-display font-black text-yellow-500 mb-2 drop-shadow-lg">
               ¡Bienvenido!

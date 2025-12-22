@@ -108,11 +108,15 @@ export default function BordaduriasPage() {
             <div className="bg-negrito-card border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
               
               {/* Header del Taller */}
-              <div className="relative h-48 bg-gradient-to-r from-red-900 to-black flex items-center justify-center p-8 text-center overflow-hidden">
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#D50000 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                <div className="relative z-10">
-                  <span className="text-red-400 text-xs font-bold tracking-[0.3em] uppercase mb-2 block">Bordaduría & Arte</span>
-                  <h1 className="text-3xl md:text-5xl font-display font-bold text-white drop-shadow-lg">
+              <div className="relative h-56 bg-gradient-to-br from-red-900 via-red-800 to-black flex items-center justify-center p-8 text-center overflow-hidden">
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #D50000 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="relative z-10 space-y-3">
+                  <div className="inline-block text-6xl mb-2 filter drop-shadow-[0_0_20px_rgba(213,0,0,0.6)]">
+                    🧵
+                  </div>
+                  <span className="text-festivo-red text-xs font-bold tracking-[0.3em] uppercase block drop-shadow-lg">Bordaduría & Arte Textil</span>
+                  <h1 className="text-3xl md:text-5xl font-display font-bold text-white drop-shadow-2xl">
                     {detail.razon_social}
                   </h1>
                 </div>
@@ -160,7 +164,7 @@ export default function BordaduriasPage() {
                     <div className="flex gap-3">
                       <a 
                         href={`tel:${detail.celular}`}
-                        className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                        className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 border border-green-500/30 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-green-900/30 font-medium"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
@@ -249,34 +253,37 @@ export default function BordaduriasPage() {
                 <div
                   key={taller.id}
                   onClick={() => handleSelectBordaduria(taller.id)}
-                  className="group relative bg-negrito-card overflow-hidden rounded-2xl border border-white/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_-10px_rgba(213,0,0,0.3)] block cursor-pointer"
+                  className="group relative bg-negrito-card overflow-hidden rounded-2xl border border-white/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_-10px_rgba(213,0,0,0.4)] hover:border-festivo-red/50 block cursor-pointer"
                 >
                   {/* Decoración de fondo */}
-                  <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity">
                     <svg className="w-full h-full" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
                       <defs>
-                        <pattern id="stitch" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <pattern id={`stitch-${taller.id}`} width="20" height="20" patternUnits="userSpaceOnUse">
                           <path d="M0 10 L20 10 M10 0 L10 20" stroke="#D50000" strokeWidth="1" fill="none"/>
                         </pattern>
                       </defs>
-                      <rect width="100%" height="100%" fill="url(#stitch)" />
+                      <rect width="100%" height="100%" fill={`url(#stitch-${taller.id})`} />
                     </svg>
                   </div>
 
-                  <div className="h-1 w-full bg-festivo-red shadow-[0_0_10px_#D50000]"></div>
+                  <div className="h-1 w-full bg-gradient-to-r from-festivo-red via-red-500 to-festivo-red shadow-[0_0_15px_rgba(213,0,0,0.5)]"></div>
 
                   <div className="p-8 flex flex-col items-center text-center relative z-10">
-                    <div className="mb-4 text-festivo-red p-3 bg-red-900/20 rounded-full group-hover:scale-110 transition-transform duration-300">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
-                      </svg>
+                    <div className="mb-4 text-5xl group-hover:scale-110 transition-transform duration-300 filter drop-shadow-[0_0_10px_rgba(213,0,0,0.3)]">
+                      🧵
                     </div>
 
-                    <h3 className="text-xl font-display font-bold text-white group-hover:text-festivo-red transition-colors">
+                    <h3 className="text-xl font-display font-bold text-white group-hover:text-festivo-red transition-colors leading-tight">
                       {taller.razon_social}
                     </h3>
                     
-                    <span className="text-xs text-gray-500 mt-2 uppercase tracking-widest group-hover:text-gray-400">Ver Detalles</span>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-gray-500 uppercase tracking-widest group-hover:text-festivo-red/70 transition-colors">
+                      <span>Ver Detalles</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               ))

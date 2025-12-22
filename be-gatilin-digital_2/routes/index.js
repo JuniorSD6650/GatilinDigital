@@ -8,6 +8,7 @@ const cofradesRoutes = require('./cofrades');
 const eventosRoutes = require('./eventos');
 const reportesRoutes = require('./reportes');
 const festivalRoutes = require('./festival');
+const estadisticasRoutes = require('./estadisticas');
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/cofrades', cofradesRoutes);
 router.use('/eventos', eventosRoutes);
 router.use('/reportes', reportesRoutes);
 router.use('/festival', festivalRoutes);
+router.use('/estadisticas', estadisticasRoutes);
 
 module.exports = router;

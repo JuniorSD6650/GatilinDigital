@@ -423,3 +423,36 @@ export const uploadExcel = async (endpoint: string, file: File) => {
 
   return await response.json();
 };
+
+// ============================================
+// ESTADÍSTICAS DEL DASHBOARD
+// ============================================
+
+export interface Estadisticas {
+  totalCofradias: number;
+  totalCofrades: number;
+  totalEventos: number;
+  totalReportes: number;
+  totalParticipantes: number;
+  totalBordadurias: number;
+  totalLocalizadores: number;
+  reportesPendientes: number;
+  eventosProximos: number;
+}
+
+export const getEstadisticas = async (): Promise<Estadisticas> => {
+  try {
+    const response = await fetch(`${API_URL}/estadisticas`, {
+      headers: getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al obtener estadísticas');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getEstadisticas:', error);
+    throw error;
+  }
+};

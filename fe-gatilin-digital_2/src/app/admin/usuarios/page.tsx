@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getLocalizadores, updateLocalizadorPassword, type Usuario } from '@/services/apis/api-admin';
+import { downloadTemplate, uploadExcel } from '@/services/apis/api-admin';
 
 export default function UsuariosAdminPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -66,6 +67,24 @@ export default function UsuariosAdminPage() {
     (u.cofradia_nombre && u.cofradia_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const handleDownloadTemplate = () => {
+    downloadTemplate('usuarios', 'Plantilla_Usuarios.xlsx');
+  };
+
+  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await uploadExcel('usuarios', file);
+      alert('Datos cargados correctamente');
+      loadUsuarios();
+    } catch (err: any) {
+      alert(err.message);
+    }
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -81,19 +100,31 @@ export default function UsuariosAdminPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-display font-bold text-white mb-2">
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
             Gestión de Localizadores
           </h2>
           <p className="text-gray-400">
             {filteredUsuarios.length} localizador{filteredUsuarios.length !== 1 ? 'es' : ''} registrado{filteredUsuarios.length !== 1 ? 's' : ''}
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleDownloadTemplate}
+            className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
+          >
+            📥 Plantilla
+          </button>
+          <label className="px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-medium cursor-pointer">
+            📤 Cargar Excel
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUploadExcel} />
+          </label>
+        </div>
       </div>
 
       {/* Buscador */}
-      <div className="relative max-w-md">
+      <div className="relative max-w-2xl">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -168,7 +199,7 @@ export default function UsuariosAdminPage() {
       {/* Modal de Cambiar Contraseña */}
       {showModal && selectedUsuario && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-md w-full">
+          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-3xl w-full">
             
             {/* Header del Modal */}
             <div className="border-b border-white/10 p-6">

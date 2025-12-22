@@ -22,11 +22,11 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* Título */}
       <div>
-        <h2 className="text-3xl font-display font-bold text-white mb-2">
+        <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
           Bienvenido al Panel de Administración
         </h2>
         <p className="text-gray-400">
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tarjetas de Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         
         {/* Cofradías */}
         <StatCard
@@ -65,11 +65,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Accesos Rápidos */}
-      <div className="bg-negrito-card border border-white/10 rounded-2xl p-6">
-        <h3 className="text-xl font-display font-bold text-white mb-4">
+      <div className="bg-negrito-card border border-white/10 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-display font-bold text-white mb-4">
           Accesos Rápidos
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           
           <QuickAction
             label="Gestionar Cofradías"
@@ -99,11 +99,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Información */}
-      <div className="bg-gradient-to-r from-festivo-gold/10 to-yellow-600/10 border border-festivo-gold/20 rounded-2xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="text-3xl">💡</div>
+      <div className="bg-gradient-to-r from-festivo-gold/10 to-yellow-600/10 border border-festivo-gold/20 rounded-2xl p-4 sm:p-6">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="text-2xl sm:text-3xl">💡</div>
           <div>
-            <h4 className="font-display font-bold text-festivo-gold mb-2">
+            <h4 className="text-base sm:text-lg font-display font-bold text-festivo-gold mb-2">
               Panel en Desarrollo
             </h4>
             <p className="text-gray-300 text-sm leading-relaxed">

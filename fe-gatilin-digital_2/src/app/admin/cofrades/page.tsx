@@ -171,7 +171,7 @@ export default function CofradesAdminPage() {
       </div>
 
       {/* Buscador */}
-      <div className="relative max-w-md">
+      <div className="relative max-w-2xl">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <span className="text-gray-400">🔍</span>
         </div>
@@ -243,7 +243,7 @@ export default function CofradesAdminPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-negrito-card border border-white/10 rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-display font-bold text-white mb-6">
               {editingItem ? 'Editar Cofrade' : 'Nuevo Cofrade'}
             </h3>

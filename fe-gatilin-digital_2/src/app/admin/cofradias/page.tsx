@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '@/services/api';
 import { getAuthHeaders } from '@/services/apis/api-auth';
+import { downloadTemplate, uploadExcel } from '@/services/apis/api-admin';
+import { useAlert } from '@/components/AlertContext';
 
 interface Cofradia {
   id: number;
@@ -21,6 +23,7 @@ interface Cofradia {
 }
 
 export default function CofradiasAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [cofradias, setCofradias] = useState<Cofradia[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,31 +61,56 @@ export default function CofradiasAdminPage() {
 
   const handleEdit = (cofradia: Cofradia) => {
     setEditingCofradia(cofradia);
-    setFormData(cofradia);
+    // Limpiar el color para que funcione con input type='color' (solo 7 caracteres #RRGGBB)
+    const cleanedData = {
+      ...cofradia,
+      color: cofradia.color ? cofradia.color.substring(0, 7) : '#00B0FF'
+    };
+    setFormData(cleanedData);
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!editingCofradia) return;
-
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/cofradia/${editingCofradia.id}`, {
-        method: 'PUT',
+      // Convertir fecha al formato YYYY-MM-DD si existe
+      const dataToSend = { ...formData };
+      if (dataToSend.fecha_fundacion) {
+        const date = new Date(dataToSend.fecha_fundacion);
+        if (!isNaN(date.getTime())) {
+          dataToSend.fecha_fundacion = date.toISOString().split('T')[0];
+        }
+      }
+      // Asegurar que el color esté en formato hex de 6 caracteres
+      if (dataToSend.color) {
+        dataToSend.color = dataToSend.color.substring(0, 7);
+      }
+      // Asegurar que tenga organizacion_id
+      if (!dataToSend.organizacion_id) {
+        dataToSend.organizacion_id = 1;
+      }
+
+      const isEditing = !!editingCofradia;
+      const url = isEditing ? `${API_URL}/cofradia/${editingCofradia.id}` : `${API_URL}/cofradia`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: getAuthHeaders(),
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
         await loadCofradias();
         setShowModal(false);
         setEditingCofradia(null);
+        showAlert('success', editingCofradia ? 'Cofradía actualizada correctamente' : 'Cofradía creada correctamente');
       } else {
         const data = await response.json();
-        alert(data.error || 'Error al guardar');
+        showAlert('error', data.error || 'Error al guardar los cambios');
       }
     } catch (err) {
-      alert('Error de conexión');
+      showAlert('error', 'Error de conexión al guardar');
       console.error(err);
     } finally {
       setSaving(false);
@@ -90,25 +118,55 @@ export default function CofradiasAdminPage() {
   };
 
   const handleDelete = async (id: number, nombre: string) => {
-    if (!confirm(`¿Estás seguro de eliminar la cofradía "${nombre}"?`)) return;
+    showConfirm({
+      title: 'Eliminar Cofradía',
+      message: `¿Estás seguro de eliminar la cofradía "${nombre}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`${API_URL}/cofradia/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          });
 
-    try {
-      const response = await fetch(`${API_URL}/cofradia/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        await loadCofradias();
-      } else {
-        alert('Error al eliminar');
+          if (response.ok) {
+            await loadCofradias();
+            showAlert('success', 'Cofradía eliminada correctamente');
+          } else {
+            showAlert('error', 'Error al eliminar la cofradía');
+          }
+        } catch (err) {
+          showAlert('error', 'Error de conexión al eliminar');
+          console.error(err);
+        }
       }
-    } catch (err) {
-      alert('Error de conexión');
-      console.error(err);
-    }
+    });
+  };
+  
+  const handleCreate = () => {
+    setEditingCofradia(null);
+    setFormData({});
+    setShowModal(true);
   };
 
+  const handleDownloadTemplate = () => {
+    downloadTemplate('cofradia', 'Plantilla_Cofradias.xlsx');
+  };
+
+  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await uploadExcel('cofradia', file);
+      showAlert('success', 'Datos cargados correctamente desde Excel');
+      loadCofradias();
+    } catch (err: any) {
+      showAlert('error', err.message || 'Error al cargar el archivo Excel');
+    }
+    e.target.value = '';
+  };
   const filteredCofradias = cofradias.filter(c => 
     c.nickname_cofradia.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.nombre_cofradia.toLowerCase().includes(searchTerm.toLowerCase())
@@ -129,19 +187,37 @@ export default function CofradiasAdminPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-display font-bold text-white mb-2">
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
             Gestión de Cofradías
           </h2>
           <p className="text-gray-400">
             {filteredCofradias.length} cofradía{filteredCofradias.length !== 1 ? 's' : ''} registrada{filteredCofradias.length !== 1 ? 's' : ''}
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleDownloadTemplate}
+            className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
+          >
+            📥 Plantilla
+          </button>
+          <label className="px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-medium cursor-pointer">
+            📤 Cargar Excel
+            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUploadExcel} />
+          </label>
+          <button
+            onClick={handleCreate}
+            className="px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 transition-colors text-sm font-bold"
+          >
+            ➕ Nueva Cofradía
+          </button>
+        </div>
       </div>
 
       {/* Buscador */}
-      <div className="relative max-w-md">
+      <div className="relative max-w-2xl">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -246,16 +322,16 @@ export default function CofradiasAdminPage() {
         </div>
       </div>
 
-      {/* Modal de Edición */}
-      {showModal && editingCofradia && (
+      {/* Modal de Edición/Creación */}
+      {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             
             {/* Header del Modal */}
             <div className="sticky top-0 bg-negrito-card border-b border-white/10 p-6 z-10">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-display font-bold text-white">
-                  Editar Cofradía
+                  {editingCofradia ? 'Editar Cofradía' : 'Nueva Cofradía'}
                 </h3>
                 <button
                   onClick={() => setShowModal(false)}
@@ -355,6 +431,85 @@ export default function CofradiasAdminPage() {
                   />
                 </div>
 
+                {/* Fecha de Fundación */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Fecha de Fundación
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.fecha_fundacion && formData.fecha_fundacion !== '' ? (() => {
+                      const date = new Date(formData.fecha_fundacion);
+                      return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
+                    })() : ''}
+                    onChange={(e) => setFormData({ ...formData, fecha_fundacion: e.target.value })}
+                    className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                  />
+                </div>
+
+                {/* Organización ID */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    ID Organización
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.organizacion_id || 1}
+                    onChange={(e) => setFormData({ ...formData, organizacion_id: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                  />
+                </div>
+
+              </div>
+
+              {/* Información del Representante */}
+              <div className="border-t border-white/10 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-white mb-4">Datos del Representante</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* Nombre Representante */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Nombre Completo
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nombre_representante || ''}
+                      onChange={(e) => setFormData({ ...formData, nombre_representante: e.target.value })}
+                      className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                    />
+                  </div>
+
+                  {/* DNI Representante */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      DNI
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.dni_representante || ''}
+                      onChange={(e) => setFormData({ ...formData, dni_representante: e.target.value })}
+                      className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                      maxLength={8}
+                    />
+                  </div>
+
+                  {/* Celular Representante */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Celular
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.cel_representante || ''}
+                      onChange={(e) => setFormData({ ...formData, cel_representante: e.target.value })}
+                      className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                      maxLength={9}
+                    />
+                  </div>
+
+                </div>
               </div>
 
               {/* Ubicación */}

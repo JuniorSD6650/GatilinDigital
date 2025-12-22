@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import FloatingReportButton from "@/components/FloatingButtons";
 // import WelcomeModal from "@/components/WelcomeModal";
 import Footer from "@/components/Footer";
+import { AlertProvider } from "@/components/AlertContext";
 
 export const metadata: Metadata = {
   title: "Gatilín Digital - Negritos de Huánuco",
@@ -31,20 +32,22 @@ export default function RootLayout({
       {/* Nota: Ya no es necesario poner style={{ fontFamily... }} aquí 
         porque tu globals.css ya aplica la fuente al 'body' automáticamente.
       */}
-      <body className="antialiased min-h-screen pt-16 bg-neutral-950 text-white"> 
-        {/* pt-16 compensa la altura del Navbar fijo */}
-        <Navbar />
-        
-        {/* Modal de bienvenida (solo aparece una vez) */}
-        {/* <WelcomeModal /> */}
-        
-        {/* Botón flotante de reporte (Matraca) */}
-        <FloatingReportButton />
-        
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          {children}
-        </main>
-        <Footer />
+      <body className="antialiased min-h-screen pt-16 bg-neutral-950 text-white">
+        <AlertProvider>
+          {/* pt-16 compensa la altura del Navbar fijo */}
+          <Navbar />
+          
+          {/* Modal de bienvenida (solo aparece una vez) */}
+          {/* <WelcomeModal /> */}
+          
+          {/* Botón flotante de reporte (Matraca) */}
+          <FloatingReportButton />
+          
+          <main className="max-w-5xl mx-auto px-4 py-8">
+            {children}
+          </main>
+          <Footer />
+        </AlertProvider>
       </body>
     </html>
   );

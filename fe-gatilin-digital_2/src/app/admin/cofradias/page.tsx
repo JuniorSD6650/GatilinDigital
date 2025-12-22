@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '@/services/api';
 import { getAuthHeaders } from '@/services/apis/api-auth';
-import { downloadTemplate, uploadExcel } from '@/services/apis/api-admin';
+import { downloadTemplate, uploadExcel, getOrganizacionesList } from '@/services/apis/api-admin';
 import { useAlert } from '@/components/AlertContext';
 
 interface Cofradia {
@@ -25,6 +25,7 @@ interface Cofradia {
 export default function CofradiasAdminPage() {
   const { showAlert, showConfirm } = useAlert();
   const [cofradias, setCofradias] = useState<Cofradia[]>([]);
+  const [organizaciones, setOrganizaciones] = useState<{ id: number; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +38,17 @@ export default function CofradiasAdminPage() {
 
   useEffect(() => {
     loadCofradias();
+    loadOrganizaciones();
   }, []);
+
+  const loadOrganizaciones = async () => {
+    try {
+      const data = await getOrganizacionesList();
+      setOrganizaciones(data);
+    } catch (err) {
+      console.error('Error cargando organizaciones:', err);
+    }
+  };
 
   const loadCofradias = async () => {
     try {
@@ -71,6 +82,16 @@ export default function CofradiasAdminPage() {
   };
 
   const handleSave = async () => {
+    // Validación de campos obligatorios
+    if (!formData.nickname_cofradia?.trim()) {
+      showAlert('error', 'El apodo/nickname es obligatorio');
+      return;
+    }
+    if (!formData.nombre_cofradia?.trim()) {
+      showAlert('error', 'El nombre completo de la cofradía es obligatorio');
+      return;
+    }
+
     setSaving(true);
     try {
       // Convertir fecha al formato YYYY-MM-DD si existe
@@ -352,13 +373,15 @@ export default function CofradiasAdminPage() {
                 {/* Nickname */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-300">
-                    Nombre Corto *
+                    Nombre Corto <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.nickname_cofradia || ''}
                     onChange={(e) => setFormData({ ...formData, nickname_cofradia: e.target.value })}
                     className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                    placeholder="El Negrito"
+                    required
                   />
                 </div>
 
@@ -380,13 +403,15 @@ export default function CofradiasAdminPage() {
               {/* Nombre Completo */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Nombre Completo
+                  Nombre Completo <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.nombre_cofradia || ''}
                   onChange={(e) => setFormData({ ...formData, nombre_cofradia: e.target.value })}
                   className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                  placeholder="Cofradia del Negrito de Huánuco"
+                  required
                 />
               </div>
 
@@ -440,24 +465,32 @@ export default function CofradiasAdminPage() {
                     type="date"
                     value={formData.fecha_fundacion && formData.fecha_fundacion !== '' ? (() => {
                       const date = new Date(formData.fecha_fundacion);
-                      return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
+                      if (!isNaN(date.getTime())) {
+                        return date.toISOString().split('T')[0];
+                      }
+                      return '';
                     })() : ''}
                     onChange={(e) => setFormData({ ...formData, fecha_fundacion: e.target.value })}
                     className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
                   />
                 </div>
 
-                {/* Organización ID */}
+                {/* Organización */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-300">
-                    ID Organización
+                    Organización *
                   </label>
-                  <input
-                    type="number"
+                  <select
                     value={formData.organizacion_id || 1}
                     onChange={(e) => setFormData({ ...formData, organizacion_id: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
-                  />
+                  >
+                    {organizaciones.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
               </div>

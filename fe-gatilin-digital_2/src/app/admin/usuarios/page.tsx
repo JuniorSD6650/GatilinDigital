@@ -1,25 +1,44 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getLocalizadores, updateLocalizadorPassword, type Usuario } from '@/services/apis/api-admin';
+import { getLocalizadores, updateLocalizadorPassword, getCofradiasList, type Usuario } from '@/services/apis/api-admin';
 import { downloadTemplate, uploadExcel } from '@/services/apis/api-admin';
+import { API_URL } from '@/services/api';
+import { getAuthHeaders } from '@/services/apis/api-auth';
+import { useAlert } from '@/components/AlertContext';
 
 export default function UsuariosAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [cofradias, setCofradias] = useState<{ id: number; nickname_cofradia: string; nombre_cofradia: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Estados para el modal
-  const [showModal, setShowModal] = useState(false);
+  // Estados para el modal de edición/creación
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
+  const [formData, setFormData] = useState<Partial<Usuario & { password?: string }>>({});
+  const [saving, setSaving] = useState(false);
+
+  // Estados para el modal de cambiar contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null);
   const [newPassword, setNewPassword] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     loadUsuarios();
+    loadCofradias();
   }, []);
+
+  const loadCofradias = async () => {
+    try {
+      const data = await getCofradiasList();
+      setCofradias(data);
+    } catch (err) {
+      console.error('Error cargando cofradías:', err);
+    }
+  };
 
   const loadUsuarios = async () => {
     try {
@@ -36,30 +55,95 @@ export default function UsuariosAdminPage() {
   const handleOpenModal = (usuario: Usuario) => {
     setSelectedUsuario(usuario);
     setNewPassword('');
-    setSuccess('');
-    setShowModal(true);
+    setShowPasswordModal(true);
   };
 
   const handleUpdatePassword = async () => {
     if (!selectedUsuario || !newPassword) return;
 
     setSaving(true);
-    setSuccess('');
 
     try {
       await updateLocalizadorPassword(selectedUsuario.id, newPassword);
-      setSuccess('¡Contraseña actualizada con éxito!');
-      setTimeout(() => {
-        setShowModal(false);
-        setSelectedUsuario(null);
-        setNewPassword('');
-      }, 2000);
+      showAlert('success', '¡Contraseña actualizada con éxito!');
+      setShowPasswordModal(false);
+      setSelectedUsuario(null);
+      setNewPassword('');
     } catch (err: any) {
-      alert(err.message || 'Error al actualizar contraseña');
+      showAlert('error', err.message || 'Error al actualizar contraseña');
       console.error(err);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreate = () => {
+    setEditingUsuario(null);
+    setFormData({ role: 'localizador' });
+    setShowEditModal(true);
+  };
+
+  const handleEdit = (usuario: Usuario) => {
+    setEditingUsuario(usuario);
+    setFormData(usuario);
+    setShowEditModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const isEditing = !!editingUsuario;
+      const url = isEditing ? `${API_URL}/usuarios/${editingUsuario.id}` : `${API_URL}/usuarios`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        await loadUsuarios();
+        setShowEditModal(false);
+        setEditingUsuario(null);
+        showAlert('success', isEditing ? 'Localizador actualizado correctamente' : 'Localizador creado correctamente');
+      } else {
+        const data = await response.json();
+        showAlert('error', data.error || 'Error al guardar los cambios');
+      }
+    } catch (err) {
+      showAlert('error', 'Error de conexión al guardar');
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number, username: string) => {
+    showConfirm({
+      title: 'Eliminar Localizador',
+      message: `¿Estás seguro de eliminar el localizador "${username}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`${API_URL}/usuarios/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          });
+
+          if (response.ok) {
+            await loadUsuarios();
+            showAlert('success', 'Localizador eliminado correctamente');
+          } else {
+            showAlert('error', 'Error al eliminar el localizador');
+          }
+        } catch (err) {
+          showAlert('error', 'Error de conexión al eliminar');
+          console.error(err);
+        }
+      }
+    });
   };
 
   const filteredUsuarios = usuarios.filter(u => 
@@ -77,10 +161,10 @@ export default function UsuariosAdminPage() {
 
     try {
       await uploadExcel('usuarios', file);
-      alert('Datos cargados correctamente');
+      showAlert('success', 'Datos cargados correctamente desde Excel');
       loadUsuarios();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al cargar el archivo Excel');
     }
     e.target.value = '';
   };
@@ -120,6 +204,12 @@ export default function UsuariosAdminPage() {
             📤 Cargar Excel
             <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUploadExcel} />
           </label>
+          <button
+            onClick={handleCreate}
+            className="px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 transition-colors text-sm font-bold"
+          >
+            ➕ Nuevo Localizador
+          </button>
         </div>
       </div>
 
@@ -181,11 +271,25 @@ export default function UsuariosAdminPage() {
               </div>
 
               {/* Botón de cambiar contraseña */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEdit(usuario)}
+                  className="flex-1 py-2.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
+                >
+                  ✏️ Editar
+                </button>
+                <button
+                  onClick={() => handleOpenModal(usuario)}
+                  className="flex-1 py-2.5 bg-festivo-cyan/10 border border-festivo-cyan/30 text-festivo-cyan rounded-lg hover:bg-festivo-cyan/20 transition-colors text-sm font-medium"
+                >
+                  🔑 Contraseña
+                </button>
+              </div>
               <button
-                onClick={() => handleOpenModal(usuario)}
-                className="w-full py-2.5 bg-festivo-cyan/10 border border-festivo-cyan/30 text-festivo-cyan rounded-lg hover:bg-festivo-cyan/20 transition-colors text-sm font-medium"
+                onClick={() => handleDelete(usuario.id, usuario.username)}
+                className="w-full mt-2 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm font-medium"
               >
-                🔑 Cambiar Contraseña
+                🗑️ Eliminar
               </button>
             </div>
           ))
@@ -197,7 +301,7 @@ export default function UsuariosAdminPage() {
       </div>
 
       {/* Modal de Cambiar Contraseña */}
-      {showModal && selectedUsuario && (
+      {showPasswordModal && selectedUsuario && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-3xl w-full">
             
@@ -213,7 +317,7 @@ export default function UsuariosAdminPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => setShowPasswordModal(false)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -225,13 +329,6 @@ export default function UsuariosAdminPage() {
 
             {/* Contenido del Modal */}
             <div className="p-6 space-y-4">
-              
-              {/* Mensaje de éxito */}
-              {success && (
-                <div className="bg-green-500/10 border border-green-500/50 rounded-xl p-4 text-green-400 text-sm animate-in fade-in">
-                  ✓ {success}
-                </div>
-              )}
 
               {/* Input de contraseña */}
               <div className="space-y-2">
@@ -245,7 +342,7 @@ export default function UsuariosAdminPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-neutral-900 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-cyan/50 focus:border-transparent transition-all"
                   placeholder="Ingresa la nueva contraseña"
-                  disabled={saving || !!success}
+                  disabled={saving}
                   autoFocus
                 />
                 <p className="text-xs text-gray-500">
@@ -273,7 +370,7 @@ export default function UsuariosAdminPage() {
             {/* Footer del Modal */}
             <div className="border-t border-white/10 p-6 flex justify-end gap-3">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => setShowPasswordModal(false)}
                 disabled={saving}
                 className="px-6 py-2 bg-neutral-900 border border-white/10 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
               >
@@ -281,20 +378,114 @@ export default function UsuariosAdminPage() {
               </button>
               <button
                 onClick={handleUpdatePassword}
-                disabled={saving || !newPassword || !!success}
+                disabled={saving || !newPassword}
                 className="px-6 py-2 bg-gradient-to-r from-festivo-cyan to-blue-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Guardando...
-                  </span>
-                ) : (
-                  'Guardar Contraseña'
+                {saving ? 'Guardando...' : 'Guardar Contraseña'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición/Creación */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            
+            {/* Header del Modal */}
+            <div className="sticky top-0 bg-negrito-card border-b border-white/10 p-6 z-10">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-display font-bold text-white">
+                  {editingUsuario ? 'Editar Localizador' : 'Nuevo Localizador'}
+                </h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Formulario */}
+            <div className="p-6 space-y-4">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Username */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Nombre de Usuario *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.username || ''}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                    placeholder="usuario123"
+                  />
+                </div>
+
+                {/* Password (solo al crear) */}
+                {!editingUsuario && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Contraseña *
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password || ''}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
                 )}
+
+                {/* Cofradía */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Cofradía *
+                  </label>
+                  <select
+                    value={formData.cofradia_id || ''}
+                    onChange={(e) => setFormData({ ...formData, cofradia_id: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
+                    required
+                  >
+                    <option value="">Seleccione una cofradía</option>
+                    {cofradias.map((cof) => (
+                      <option key={cof.id} value={cof.id}>
+                        {cof.nickname_cofradia} - {cof.nombre_cofradia}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="sticky bottom-0 bg-negrito-card border-t border-white/10 p-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={saving}
+                className="px-6 py-2 bg-neutral-900 border border-white/10 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !formData.username}
+                className="px-6 py-2 bg-gradient-to-r from-festivo-gold to-yellow-600 text-negrito-black font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
 

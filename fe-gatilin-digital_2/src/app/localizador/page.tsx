@@ -438,9 +438,7 @@ function TutorialModal({ currentStep, setCurrentStep, onClose }: { currentStep: 
             )}
           </div>
         </div>
-
       </div>
-    </div>
     </div>
   );
 }

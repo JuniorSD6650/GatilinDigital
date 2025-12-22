@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { getBordadurias, createBordaduria, updateBordaduria, deleteBordaduria, downloadTemplate, uploadExcel, type Bordaduria } from '@/services/apis/api-admin';
+import { useAlert } from '@/components/AlertContext';
 
 export default function BorduriasAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [bordadurias, setBordadurias] = useState<Bordaduria[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,7 +45,7 @@ export default function BorduriasAdminPage() {
 
   const handleSave = async () => {
     if (!formData.razon_social) {
-      alert('La razón social es obligatoria');
+      showAlert('error', 'La razón social es obligatoria');
       return;
     }
 
@@ -51,27 +53,36 @@ export default function BorduriasAdminPage() {
     try {
       if (editingItem) {
         await updateBordaduria(editingItem.id, formData);
+        showAlert('success', 'Bordaduría actualizada correctamente');
       } else {
         await createBordaduria(formData);
+        showAlert('success', 'Bordaduría creada correctamente');
       }
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al guardar la bordaduría');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, nombre: string) => {
-    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-
-    try {
-      await deleteBordaduria(id);
-      loadData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    showConfirm({
+      title: 'Confirmar eliminación',
+      message: `¿Estás seguro de eliminar "${nombre}"?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteBordaduria(id);
+          showAlert('success', 'Bordaduría eliminada correctamente');
+          loadData();
+        } catch (err: any) {
+          showAlert('error', err.message || 'Error al eliminar la bordaduría');
+        }
+      }
+    });
   };
 
   const handleDownloadTemplate = () => {
@@ -84,10 +95,10 @@ export default function BorduriasAdminPage() {
 
     try {
       await uploadExcel('bordadurias', file);
-      alert('Datos cargados correctamente');
+      showAlert('success', 'Datos cargados correctamente desde Excel');
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al cargar el archivo Excel');
     }
     e.target.value = '';
   };

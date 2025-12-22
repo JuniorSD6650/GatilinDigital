@@ -370,6 +370,32 @@ export const deleteParticipante = async (id: number) => {
 // UTILIDADES - DESCARGA/CARGA EXCEL
 // ============================================
 
+// Obtener lista de organizaciones para selectores
+export const getOrganizacionesList = async (): Promise<{ id: number; nombre: string }[]> => {
+  const response = await fetch(`${API_URL}/organizacion/list`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error obteniendo la lista de organizaciones');
+  }
+
+  return response.json();
+};
+
+// Obtener lista de cofradías para selectores
+export const getCofradiasList = async (): Promise<{ id: number; nickname_cofradia: string; nombre_cofradia: string }[]> => {
+  const response = await fetch(`${API_URL}/cofradia/list`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error obteniendo la lista de cofradías');
+  }
+
+  return response.json();
+};
+
 export const downloadTemplate = (endpoint: string, filename: string) => {
   const url = `${API_URL}/${endpoint}/template`;
   const a = document.createElement('a');

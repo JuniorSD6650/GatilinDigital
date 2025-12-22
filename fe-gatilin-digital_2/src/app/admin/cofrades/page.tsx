@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getCofrades, createCofrade, updateCofrade, deleteCofrade, downloadTemplate, uploadExcel, type Cofrade } from '@/services/apis/api-admin';
-import { API_URL } from '@/services/api';
+import { API_URL, BASE_URL } from '@/services/api';
+import { useAlert } from '@/components/AlertContext';
 
 interface Cofradia {
   id: number;
@@ -10,6 +11,7 @@ interface Cofradia {
 }
 
 export default function CofradesAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [cofrades, setCofrades] = useState<Cofrade[]>([]);
   const [cofradias, setCofradias] = useState<Cofradia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,11 @@ export default function CofradesAdminPage() {
   const [formData, setFormData] = useState<Partial<Cofrade>>({});
   const [foto, setFoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Estado para el modal de foto
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string>('');
+  const [selectedCofradeName, setSelectedCofradeName] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -55,6 +62,21 @@ export default function CofradesAdminPage() {
     setShowModal(true);
   };
 
+  const handleViewPhoto = (cofrade: Cofrade) => {
+    if (cofrade.ruta_foto) {
+      // Si la ruta ya es absoluta (http), usarla tal cual
+      // Si no, construir la URL. ruta_foto viene como "uploads/cofrades/file.jpg"
+      const photoUrl = cofrade.ruta_foto.startsWith('http') 
+        ? cofrade.ruta_foto 
+        : `${BASE_URL}/${cofrade.ruta_foto}`;
+      setSelectedPhoto(photoUrl);
+      setSelectedCofradeName(cofrade.nombres_apellidos);
+      setShowPhotoModal(true);
+    } else {
+      showAlert('error', 'Este cofrade no tiene foto registrada');
+    }
+  };
+
   const handleEdit = (item: Cofrade) => {
     setEditingItem(item);
     setFormData(item);
@@ -64,7 +86,7 @@ export default function CofradesAdminPage() {
 
   const handleSave = async () => {
     if (!formData.nombres_apellidos || !formData.cod_cofradia) {
-      alert('El nombre y la cofradía son obligatorios');
+      showAlert('error', 'El nombre y la cofradía son obligatorios');
       return;
     }
 
@@ -84,27 +106,36 @@ export default function CofradesAdminPage() {
 
       if (editingItem) {
         await updateCofrade(editingItem.id, fd);
+        showAlert('success', 'Cofrade actualizado correctamente');
       } else {
         await createCofrade(fd);
+        showAlert('success', 'Cofrade creado correctamente');
       }
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al guardar el cofrade');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, nombre: string) => {
-    if (!confirm(`¿Eliminar a "${nombre}"?`)) return;
-
-    try {
-      await deleteCofrade(id);
-      loadData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    showConfirm({
+      title: 'Eliminar Cofrade',
+      message: `¿Estás seguro de eliminar a "${nombre}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteCofrade(id);
+          showAlert('success', 'Cofrade eliminado correctamente');
+          loadData();
+        } catch (err: any) {
+          showAlert('error', err.message || 'Error al eliminar el cofrade');
+        }
+      }
+    });
   };
 
   const handleDownloadTemplate = () => {
@@ -117,10 +148,10 @@ export default function CofradesAdminPage() {
 
     try {
       await uploadExcel('cofrades', file);
-      alert('Datos cargados correctamente');
+      showAlert('success', 'Datos cargados correctamente desde Excel');
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al cargar el archivo Excel');
     }
     e.target.value = '';
   };
@@ -202,6 +233,7 @@ export default function CofradesAdminPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Cargo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Celular</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Año</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Foto</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-gray-400">Acciones</th>
               </tr>
             </thead>
@@ -214,6 +246,19 @@ export default function CofradesAdminPage() {
                   <td className="px-6 py-4 text-sm text-gray-400">{item.cargo_cofrade || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-400">{item.celular || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-400">{item.anio || '-'}</td>
+                  <td className="px-6 py-4 text-center">
+                    {item.ruta_foto ? (
+                      <button
+                        onClick={() => handleViewPhoto(item)}
+                        className="px-3 py-1 bg-purple-500/10 text-purple-400 rounded hover:bg-purple-500/20 text-sm"
+                        title="Ver foto"
+                      >
+                        🖼️ Ver
+                      </button>
+                    ) : (
+                      <span className="text-gray-600 text-xs">Sin foto</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <button
                       onClick={() => handleEdit(item)}
@@ -367,6 +412,50 @@ export default function CofradesAdminPage() {
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Foto */}
+      {showPhotoModal && (
+        <div 
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-4 md:p-6 z-10 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg md:text-2xl font-display font-bold text-white truncate pr-4">
+                  {selectedCofradeName}
+                </h3>
+                <button
+                  onClick={() => setShowPhotoModal(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Imagen */}
+            <div className="bg-negrito-card border border-white/10 rounded-2xl overflow-hidden mt-16 md:mt-20">
+              <img
+                src={selectedPhoto}
+                alt={selectedCofradeName}
+                className="w-full h-auto max-h-[80vh] md:max-h-[85vh] object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-image.png';
+                  e.currentTarget.alt = 'Imagen no disponible';
+                }}
+              />
             </div>
           </div>
         </div>

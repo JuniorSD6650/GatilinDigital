@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { getReportes, updateReporte, deleteReporte, type Reporte } from '@/services/apis/api-admin';
-import { API_URL } from '@/services/api';
+import { API_URL, BASE_URL } from '@/services/api';
+import { useAlert } from '@/components/AlertContext';
 
 export default function ReportesAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,6 +17,11 @@ export default function ReportesAdminPage() {
   const [editingItem, setEditingItem] = useState<Reporte | null>(null);
   const [formData, setFormData] = useState<Partial<Reporte>>({});
   const [saving, setSaving] = useState(false);
+
+  // Estados para modal de foto
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string>('');
+  const [selectedReportName, setSelectedReportName] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -46,23 +53,44 @@ export default function ReportesAdminPage() {
       fd.append('estado', formData.estado || 'pendiente');
 
       await updateReporte(editingItem.id, fd);
+      showAlert('success', 'Estado del reporte actualizado correctamente');
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al actualizar el reporte');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, nombre: string) => {
-    if (!confirm(`¿Eliminar reporte de "${nombre}"?`)) return;
+    showConfirm({
+      title: 'Eliminar Reporte',
+      message: `¿Estás seguro de eliminar el reporte de "${nombre}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteReporte(id);
+          showAlert('success', 'Reporte eliminado correctamente');
+          loadData();
+        } catch (err: any) {
+          showAlert('error', err.message || 'Error al eliminar el reporte');
+        }
+      }
+    });
+  };
 
-    try {
-      await deleteReporte(id);
-      loadData();
-    } catch (err: any) {
-      alert(err.message);
+  const handleViewPhoto = (reporte: Reporte) => {
+    if (reporte.ruta_foto) {
+      const photoUrl = reporte.ruta_foto.startsWith('http') 
+        ? reporte.ruta_foto 
+        : `${BASE_URL}/${reporte.ruta_foto}`;
+      setSelectedPhoto(photoUrl);
+      setSelectedReportName(reporte.nombre_reportante);
+      setShowPhotoModal(true);
+    } else {
+      showAlert('error', 'Este reporte no tiene foto');
     }
   };
 
@@ -152,9 +180,13 @@ export default function ReportesAdminPage() {
             
             {/* Imagen si existe */}
             {reporte.ruta_foto && (
-              <div className="mb-4 rounded-lg overflow-hidden bg-white/5">
+              <div 
+                className="mb-4 rounded-lg overflow-hidden bg-white/5 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => handleViewPhoto(reporte)}
+                title="Click para ver en grande"
+              >
                 <img 
-                  src={`${API_URL.replace('/api', '')}/${reporte.ruta_foto}`} 
+                  src={`${BASE_URL}/${reporte.ruta_foto}`} 
                   alt="Foto del reporte" 
                   className="w-full h-48 object-cover"
                 />
@@ -259,6 +291,50 @@ export default function ReportesAdminPage() {
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Foto */}
+      {showPhotoModal && (
+        <div 
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-4 md:p-6 z-10 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg md:text-2xl font-display font-bold text-white truncate pr-4">
+                  Foto de {selectedReportName}
+                </h3>
+                <button
+                  onClick={() => setShowPhotoModal(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Imagen */}
+            <div className="bg-negrito-card border border-white/10 rounded-2xl overflow-hidden mt-16 md:mt-20">
+              <img
+                src={selectedPhoto}
+                alt={selectedReportName}
+                className="w-full h-auto max-h-[80vh] md:max-h-[85vh] object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-image.png';
+                  e.currentTarget.alt = 'Imagen no disponible';
+                }}
+              />
             </div>
           </div>
         </div>

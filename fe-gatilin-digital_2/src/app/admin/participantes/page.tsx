@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { getParticipantes, createParticipante, updateParticipante, deleteParticipante, type Participante } from '@/services/apis/api-admin';
+import { useAlert } from '@/components/AlertContext';
 
 export default function ParticipantesAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [participantes, setParticipantes] = useState<Participante[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,7 +46,7 @@ export default function ParticipantesAdminPage() {
 
   const handleSave = async () => {
     if (!formData.nombre) {
-      alert('El nombre es obligatorio');
+      showAlert('error', 'El nombre es obligatorio');
       return;
     }
 
@@ -52,27 +54,36 @@ export default function ParticipantesAdminPage() {
     try {
       if (editingItem) {
         await updateParticipante(editingItem.id, formData);
+        showAlert('success', 'Participante actualizado correctamente');
       } else {
         await createParticipante(formData);
+        showAlert('success', 'Participante creado correctamente');
       }
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al guardar el participante');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, nombre: string) => {
-    if (!confirm(`¿Eliminar a "${nombre}"?`)) return;
-
-    try {
-      await deleteParticipante(id);
-      loadData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    showConfirm({
+      title: 'Eliminar Participante',
+      message: `¿Estás seguro de eliminar a "${nombre}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteParticipante(id);
+          showAlert('success', 'Participante eliminado correctamente');
+          loadData();
+        } catch (err: any) {
+          showAlert('error', err.message || 'Error al eliminar el participante');
+        }
+      }
+    });
   };
 
   const filteredData = participantes.filter(p => {

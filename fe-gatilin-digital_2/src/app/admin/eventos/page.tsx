@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getEventos, createEvento, updateEvento, deleteEvento, downloadTemplate, uploadExcel, type Evento } from '@/services/apis/api-admin';
 import { API_URL } from '@/services/api';
+import { useAlert } from '@/components/AlertContext';
 
 interface Cofradia {
   id: number;
@@ -10,6 +11,7 @@ interface Cofradia {
 }
 
 export default function EventosAdminPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cofradias, setCofradias] = useState<Cofradia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,22 @@ export default function EventosAdminPage() {
 
   const handleSave = async () => {
     if (!formData.fecha) {
-      alert('La fecha es obligatoria');
+      showAlert('error', 'La fecha es obligatoria');
+      return;
+    }
+
+    if (!formData.hora?.trim()) {
+      showAlert('error', 'La hora es obligatoria');
+      return;
+    }
+
+    if (!formData.oferente?.trim()) {
+      showAlert('error', 'El oferente es obligatorio');
+      return;
+    }
+
+    if (!formData.direccion_actividad?.trim()) {
+      showAlert('error', 'La dirección de la actividad es obligatoria');
       return;
     }
 
@@ -75,27 +92,36 @@ export default function EventosAdminPage() {
     try {
       if (editingItem) {
         await updateEvento(editingItem.id, formData);
+        showAlert('success', 'Evento actualizado correctamente');
       } else {
         await createEvento(formData);
+        showAlert('success', 'Evento creado correctamente');
       }
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al guardar el evento');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, tipo: string) => {
-    if (!confirm(`¿Eliminar evento "${tipo}"?`)) return;
-
-    try {
-      await deleteEvento(id);
-      loadData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    showConfirm({
+      title: 'Eliminar Evento',
+      message: `¿Estás seguro de eliminar el evento "${tipo}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        try {
+          await deleteEvento(id);
+          showAlert('success', 'Evento eliminado correctamente');
+          loadData();
+        } catch (err: any) {
+          showAlert('error', err.message || 'Error al eliminar el evento');
+        }
+      }
+    });
   };
 
   const handleDownloadTemplate = () => {
@@ -108,10 +134,10 @@ export default function EventosAdminPage() {
 
     try {
       await uploadExcel('eventos', file);
-      alert('Datos cargados correctamente');
+      showAlert('success', 'Datos cargados correctamente desde Excel');
       loadData();
     } catch (err: any) {
-      alert(err.message);
+      showAlert('error', err.message || 'Error al cargar el archivo Excel');
     }
     e.target.value = '';
   };
@@ -188,9 +214,8 @@ export default function EventosAdminPage() {
           <table className="w-full">
             <thead className="bg-white/5">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Fecha</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Fecha y Hora</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tipo</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Hora</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Oferente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Cofradía</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Dirección</th>
@@ -200,9 +225,11 @@ export default function EventosAdminPage() {
             <tbody className="divide-y divide-white/5">
               {filteredData.map((item) => (
                 <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-300">{item.fecha}</td>
+                  <td className="px-6 py-4 text-sm text-gray-300">
+                    <div>{item.fecha}</div>
+                    {item.hora && <div className="text-xs text-gray-500">{item.hora}</div>}
+                  </td>
                   <td className="px-6 py-4 text-sm font-medium text-white">{item.tipo_evento || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.hora || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-400">{item.oferente || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-400">{item.nickname_cofradia || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{item.direccion_actividad || '-'}</td>
@@ -255,7 +282,7 @@ export default function EventosAdminPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Hora
+                  Hora <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="time"
@@ -293,7 +320,7 @@ export default function EventosAdminPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Oferente
+                  Oferente <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -346,7 +373,7 @@ export default function EventosAdminPage() {
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Dirección de la Actividad
+                  Dirección de la Actividad <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"

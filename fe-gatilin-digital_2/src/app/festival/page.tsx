@@ -149,7 +149,10 @@ export default function FestivalPage() {
         {/* Header con fecha seleccionada */}
         {selectedFecha && (
           <div className="mb-6 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+            <h2
+              className="text-2xl md:text-3xl font-bold text-white mb-2 break-words whitespace-normal leading-tight"
+              style={{ wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: 1.2 }}
+            >
               {formatFechaCompleta(selectedFecha)}
             </h2>
             {isToday(selectedFecha) && (
@@ -342,46 +345,59 @@ export default function FestivalPage() {
                     </div>
 
                     {/* Información principal */}
-                    <div className="flex-grow space-y-2">
-                      {/* Nombre de la cofradía */}
-                      <h3 className="text-lg md:text-xl font-bold text-white">
+                    <div className="flex-grow space-y-3">
+                      {/* Nombre de la cofradía - máximo 4 líneas */}
+                      <h3
+                        className="text-lg md:text-xl font-bold text-white break-words whitespace-normal leading-tight"
+                        style={{
+                          fontSize: 'clamp(1rem, 2.5vw, 1.35rem)',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'normal',
+                          lineHeight: 1.2,
+                          overflow: 'hidden',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 4,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
                         {evento.nombre_cofradia}
                       </h3>
                       
                       {/* Detalles */}
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
-                        {/* Tipo de actividad */}
-                        <span className={`
-                          inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border font-semibold
-                          ${actividadBadge.color}
-                        `}>
-                          <span>{actividadBadge.emoji}</span>
-                          <span>{evento.tipo_actividad}</span>
-                        </span>
+                      <div className="flex flex-col gap-2">
+                        {/* Tipo de actividad y estado en la misma línea */}
+                        <div className="flex items-center gap-2 text-sm overflow-x-auto">
+                          <span className={`
+                            inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border font-semibold whitespace-nowrap text-xs
+                            ${actividadBadge.color}
+                          `}>
+                            <span>{actividadBadge.emoji}</span>
+                            <span>{evento.tipo_actividad}</span>
+                          </span>
 
-                        {/* Lugar */}
-                        <span className="inline-flex items-center gap-1.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <span className={`
+                            inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold whitespace-nowrap text-xs
+                            ${evento.estado === 'en_curso' 
+                              ? 'bg-green-500/20 text-green-300' 
+                              : evento.estado === 'finalizado'
+                              ? 'bg-gray-500/20 text-gray-400'
+                              : 'bg-blue-500/20 text-blue-300'
+                            }
+                          `}>
+                            {evento.estado === 'en_curso' && '🔴 En vivo'}
+                            {evento.estado === 'finalizado' && '✅ Finalizado'}
+                            {evento.estado === 'programado' && '📅 Programado'}
+                          </span>
+                        </div>
+
+                        {/* Lugar en su propia línea */}
+                        <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                           </svg>
-                          <span>{evento.lugar}</span>
-                        </span>
-
-                        {/* Estado */}
-                        <span className={`
-                          inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold
-                          ${evento.estado === 'en_curso' 
-                            ? 'bg-green-500/20 text-green-300' 
-                            : evento.estado === 'finalizado'
-                            ? 'bg-gray-500/20 text-gray-400'
-                            : 'bg-blue-500/20 text-blue-300'
-                          }
-                        `}>
-                          {evento.estado === 'en_curso' && '🔴 En vivo'}
-                          {evento.estado === 'finalizado' && '✅ Finalizado'}
-                          {evento.estado === 'programado' && '📅 Programado'}
-                        </span>
+                          <span className="truncate">{evento.lugar}</span>
+                        </div>
                       </div>
                     </div>
 

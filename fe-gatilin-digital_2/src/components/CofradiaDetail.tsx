@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import React from 'react';
 import { type CofradiaDetalle, type Evento, getEventosByCofradiaId, votarCofradia, quitarVotoCofradia } from '@/services/apis/api-normal';
 import CofradesSection from './CofradesSection';
 
@@ -48,6 +49,12 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
     const [votando, setVotando] = useState(false);
     const [haVotadoEnEstaSesion, setHaVotadoEnEstaSesion] = useState(false);
     const [baseUrl, setBaseUrl] = useState('');
+    const [diaSeleccionado, setDiaSeleccionado] = useState<string>('');
+    
+    // Scroll state para el selector de fechas
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const [showLeftArrow, setShowLeftArrow] = useState(false);
+    const [showRightArrow, setShowRightArrow] = useState(false);
 
     // Fix para color negro: usar #FF007F si es #000 o #000000
     const displayColor = (detail.color === '#000' || detail.color === '#000000' || !detail.color) 
@@ -61,6 +68,29 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
         }
     }, []);
 
+    // Función para verificar scroll
+    const checkScroll = React.useCallback(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+            setShowLeftArrow(container.scrollLeft > 0);
+            setShowRightArrow(
+                container.scrollLeft < container.scrollWidth - container.clientWidth - 1
+            );
+        }
+    }, []);
+
+    // Función para hacer scroll
+    const scroll = React.useCallback((direction: 'left' | 'right') => {
+        const container = scrollContainerRef.current;
+        if (container) {
+            const scrollAmount = 200;
+            container.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    }, []);
+
     // Cargar eventos de la cofradía
     useEffect(() => {
         const fetchEventos = async () => {
@@ -68,6 +98,27 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
             try {
                 const data = await getEventosByCofradiaId(detail.id);
                 setEventos(data);
+                
+                // Seleccionar el día actual o el primero disponible
+                if (data.length > 0) {
+                    const fechasUnicas = [...new Set(data.map(e => e.fecha))].sort((a, b) => {
+                        const [dayA, monthA, yearA] = a.split('/').map(Number);
+                        const [dayB, monthB, yearB] = b.split('/').map(Number);
+                        const dateObjA = new Date(yearA, monthA - 1, dayA);
+                        const dateObjB = new Date(yearB, monthB - 1, dayB);
+                        return dateObjA.getTime() - dateObjB.getTime();
+                    });
+                    
+                    // Verificar si hoy es uno de los días con eventos
+                    const hoy = new Date();
+                    const diaHoy = String(hoy.getDate()).padStart(2, '0');
+                    const mesHoy = String(hoy.getMonth() + 1).padStart(2, '0');
+                    const añoHoy = hoy.getFullYear();
+                    const fechaHoyFormato = `${diaHoy}/${mesHoy}/${añoHoy}`;
+                    
+                    const tieneEventosHoy = fechasUnicas.includes(fechaHoyFormato);
+                    setDiaSeleccionado(tieneEventosHoy ? fechaHoyFormato : fechasUnicas[0]);
+                }
             } catch (error) {
                 console.error('Error cargando eventos:', error);
             } finally {
@@ -79,6 +130,20 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
             fetchEventos();
         }
     }, [detail.id]);
+
+    // Listener para scroll
+    useEffect(() => {
+        checkScroll();
+        const container = scrollContainerRef.current;
+        if (container) {
+            container.addEventListener('scroll', checkScroll);
+            window.addEventListener('resize', checkScroll);
+            return () => {
+                container.removeEventListener('scroll', checkScroll);
+                window.removeEventListener('resize', checkScroll);
+            };
+        }
+    }, [checkScroll, eventos]);
 
     // Función para votar
     const handleVotar = async () => {
@@ -246,7 +311,18 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                     >
                         <div className="absolute inset-0 bg-gradient-to-t from-negrito-card to-transparent opacity-90" />
                         <div className="relative z-10 w-full">
-                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-white drop-shadow-lg leading-tight break-words">
+                            <h1
+                                className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-white drop-shadow-lg leading-tight break-words whitespace-normal"
+                                style={{
+                                    wordBreak: 'break-word',
+                                    whiteSpace: 'normal',
+                                    lineHeight: 1.15,
+                                    maxHeight: '3.5em',
+                                    overflow: 'visible',
+                                    textOverflow: 'unset',
+                                    display: 'block',
+                                }}
+                            >
                                 {detail.nickname_cofradia}
                             </h1>
                         </div>
@@ -483,7 +559,7 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                         {eventos.length > 0 && (
                             <div className="space-y-4">
                                 <h3
-                                    className="text-xl md:text-2xl font-display font-bold uppercase tracking-wider text-center inline-block pb-1 border-b-2"
+                                    className="text-xl md:text-2xl font-display font-bold uppercase tracking-wider text-center block mx-auto pb-1 border-b-2 w-fit"
                                     style={{ color: displayColor, borderColor: displayColor }}
                                 >
                                     🎉 Cronograma
@@ -496,45 +572,101 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {/* Agrupar eventos por fecha */}
-                                        {Object.entries(
-                                            eventos.reduce((acc, evento) => {
-                                                if (!acc[evento.fecha]) {
-                                                    acc[evento.fecha] = [];
-                                                }
-                                                acc[evento.fecha].push(evento);
-                                                return acc;
-                                            }, {} as Record<string, Evento[]>)
-                                        )
-                                        .sort(([dateA], [dateB]) => {
-                                            const [dayA, monthA, yearA] = dateA.split('/').map(Number);
-                                            const [dayB, monthB, yearB] = dateB.split('/').map(Number);
-                                            const dateObjA = new Date(yearA, monthA - 1, dayA);
-                                            const dateObjB = new Date(yearB, monthB - 1, dayB);
-                                            return dateObjA.getTime() - dateObjB.getTime();
-                                        })
-                                        .map(([fecha, eventosDelDia]) => (
-                                            <div key={fecha} className="relative">
-                                                {/* Header de Fecha - más compacto */}
-                                                <div className="flex items-center gap-2 md:gap-3 mb-2">
-                                                    <div 
-                                                        className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-xl shadow-md font-bold text-white flex-shrink-0"
-                                                        style={{ backgroundColor: displayColor }}
-                                                    >
-                                                        <div className="text-center">
-                                                            <div className="text-lg md:text-xl leading-none">{fecha.split('/')[0]}</div>
-                                                            <div className="text-[10px] opacity-70">{fecha.split('/')[1]}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm md:text-base font-bold text-white truncate">{eventosDelDia[0].tipo_dia}</p>
-                                                        <p className="text-xs text-gray-500">{fecha}</p>
-                                                    </div>
-                                                </div>
+                                    <div className="space-y-4">
+                                        {/* Selector de días */}
+                                        <div className="relative group">
+                                            {/* Botón izquierda - solo visible en pantallas grandes */}
+                                            {showLeftArrow && (
+                                                <button
+                                                    onClick={() => scroll('left')}
+                                                    className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                                    style={{ backdropFilter: 'blur(4px)' }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                                    </svg>
+                                                </button>
+                                            )}
 
-                                                {/* Eventos del día - Grid de 2 columnas */}
-                                                <div className="ml-0 md:ml-2 grid grid-cols-2 gap-2">
+                                            {/* Contenedor de fechas */}
+                                            <div 
+                                                ref={scrollContainerRef}
+                                                className="overflow-x-auto pb-2 scrollbar-hide"
+                                                style={{ 
+                                                    scrollbarWidth: 'none',
+                                                    msOverflowStyle: 'none'
+                                                }}
+                                            >
+                                                <div className="flex gap-2 px-12 md:px-0">
+                                                    {[...new Set(eventos.map(e => e.fecha))].sort((a, b) => {
+                                                        const [dayA, monthA, yearA] = a.split('/').map(Number);
+                                                        const [dayB, monthB, yearB] = b.split('/').map(Number);
+                                                        const dateObjA = new Date(yearA, monthA - 1, dayA);
+                                                        const dateObjB = new Date(yearB, monthB - 1, dayB);
+                                                        return dateObjA.getTime() - dateObjB.getTime();
+                                                    }).map(fecha => {
+                                                        const primerEvento = eventos.find(e => e.fecha === fecha);
+                                                        const [dia, mes] = fecha.split('/');
+                                                        const esSeleccionado = fecha === diaSeleccionado;
+                                                        
+                                                        return (
+                                                            <button
+                                                                key={fecha}
+                                                                onClick={() => setDiaSeleccionado(fecha)}
+                                                                className={`flex-shrink-0 w-[100px] h-[90px] rounded-xl font-bold transition-all ${
+                                                                    esSeleccionado 
+                                                                        ? 'shadow-lg scale-105' 
+                                                                        : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                                                                }`}
+                                                                style={esSeleccionado ? {
+                                                                    backgroundColor: displayColor,
+                                                                    color: 'white'
+                                                                } : {
+                                                                    color: displayColor
+                                                                }}
+                                                            >
+                                                                <div className="text-center flex flex-col items-center justify-center h-full px-2">
+                                                                    <div className="text-2xl font-black leading-none">{dia}</div>
+                                                                    <div className="text-xs opacity-70 mt-0.5">{mes}</div>
+                                                                    <div className="text-[10px] mt-1 opacity-90 truncate w-full">
+                                                                        {primerEvento?.tipo_dia}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Botón derecha - solo visible en pantallas grandes */}
+                                            {showRightArrow && (
+                                                <button
+                                                    onClick={() => scroll('right')}
+                                                    className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                                    style={{ backdropFilter: 'blur(4px)' }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Eventos del día seleccionado */}
+                                        {(() => {
+                                            const eventosDelDiaSeleccionado = eventos.filter(e => e.fecha === diaSeleccionado);
+                                            
+                                            if (eventosDelDiaSeleccionado.length === 0) return null;
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    {[diaSeleccionado].map(fecha => {
+                                                        const eventosDelDia = eventosDelDiaSeleccionado;
+                                                        
+                                                        return (
+                                            <div key={fecha} className="relative">
+                                                {/* Eventos del día - Grid de 1 columna */}
+                                                <div className="grid grid-cols-1 gap-2">
                                                     {eventosDelDia
                                                         .sort((a, b) => a.hora.localeCompare(b.hora))
                                                         .map((evento) => (
@@ -542,59 +674,62 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                                             key={evento.id}
                                                             className="relative bg-gradient-to-br from-negrito-card to-neutral-900/50 border border-white/10 rounded-lg p-2 md:p-3 hover:border-white/20 transition-all"
                                                         >
-                                                            {/* Hora */}
-                                                            <div 
-                                                                className="px-1.5 py-0.5 rounded font-bold text-xs mb-1.5 inline-block"
-                                                                style={{ 
-                                                                    backgroundColor: `${displayColor}20`,
-                                                                    color: displayColor
-                                                                }}
-                                                            >
-                                                                {evento.hora.substring(0, 5)}
-                                                            </div>
-
                                                             {/* Contenido compacto */}
-                                                            <div className="space-y-1">
-                                                                {/* Título */}
-                                                                <h4 className="text-xs md:text-sm font-bold text-white leading-tight line-clamp-2">
-                                                                    {evento.tipo_evento}
-                                                                </h4>
-
-                                                                {/* Dirección */}
-                                                                {evento.direccion_actividad && (
-                                                                    <div className="flex items-start gap-1">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
-                                                                            <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                                                                        </svg>
-                                                                        <span className="text-[10px] md:text-xs text-gray-400 leading-tight line-clamp-1">{evento.direccion_actividad}</span>
+                                                            <div className="space-y-0.5">
+                                                                {/* Hora y Título en la misma línea */}
+                                                                <div className="flex items-start gap-2">
+                                                                    <div 
+                                                                        className="px-1.5 py-0.5 rounded font-bold text-xs flex-shrink-0"
+                                                                        style={{ 
+                                                                            backgroundColor: `${displayColor}20`,
+                                                                            color: displayColor
+                                                                        }}
+                                                                    >
+                                                                        {evento.hora.substring(0, 5)}
                                                                     </div>
-                                                                )}
+                                                                    <div className="font-bold text-white text-xs md:text-sm break-words whitespace-normal leading-tight flex-1" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.05rem)' }}>
+                                                                        {evento.tipo_evento}
+                                                                    </div>
+                                                                </div>
                                                                 
-                                                                {/* Oferente */}
-                                                                {(evento.tipo_oferente || evento.oferente) && (
-                                                                    <div className="text-[10px] md:text-xs text-gray-400 truncate">
-                                                                        {evento.tipo_oferente && (
-                                                                            <span 
-                                                                                className="text-[9px] px-1 py-0.5 rounded font-bold uppercase mr-1"
-                                                                                style={{ 
-                                                                                    backgroundColor: `${displayColor}15`,
-                                                                                    color: displayColor
-                                                                                }}
-                                                                            >
-                                                                                {evento.tipo_oferente}
-                                                                            </span>
-                                                                        )}
-                                                                        {evento.oferente && (
-                                                                            <span>{evento.oferente}</span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
+                                                                {/* Dirección y Oferente - en la misma línea en pantallas grandes */}
+                                                                <div className="flex flex-col md:flex-row md:items-center md:gap-3 md:flex-wrap pl-0.5">
+                                                                    {/* Dirección */}
+                                                                    {evento.direccion_actividad && (
+                                                                        <div className="flex items-start gap-1 break-words whitespace-normal leading-tight">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
+                                                                                <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                            <span className="text-[11px] md:text-xs text-gray-300 break-words whitespace-normal leading-tight">{evento.direccion_actividad}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {/* Oferente */}
+                                                                    {(evento.tipo_oferente || evento.oferente) && (
+                                                                        <div className="text-[11px] md:text-xs text-gray-400 break-words whitespace-normal leading-tight">
+                                                                            {evento.tipo_oferente && (
+                                                                                <span 
+                                                                                    className="text-[10px] px-1 py-0.5 rounded font-bold uppercase mr-1"
+                                                                                    style={{ 
+                                                                                        backgroundColor: `${displayColor}15`,
+                                                                                        color: displayColor
+                                                                                    }}
+                                                                                >
+                                                                                    {evento.tipo_oferente}
+                                                                                </span>
+                                                                            )}
+                                                                            {evento.oferente && (
+                                                                                <span>{evento.oferente}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                                 
                                                                 {/* Banda */}
                                                                 {evento.banda && evento.banda !== 'Ninguna' && (
-                                                                    <div className="flex items-center gap-1">
+                                                                    <div className="flex items-center gap-1 break-words whitespace-normal leading-tight pl-0.5">
                                                                         <span className="text-xs">🎵</span>
-                                                                        <span className="text-[10px] md:text-xs text-gray-400 truncate">{evento.banda}</span>
+                                                                        <span className="text-[11px] md:text-xs text-gray-400 break-words whitespace-normal leading-tight">{evento.banda}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -602,7 +737,11 @@ export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDeta
                                                     ))}
                                                 </div>
                                             </div>
-                                        ))}
+                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
 

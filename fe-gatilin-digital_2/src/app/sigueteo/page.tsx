@@ -66,11 +66,17 @@ function SigueteoContent() {
     fetchList();
   }, []);
 
-  // Handler para seleccionar cofradía desde query param
+  // Handler para seleccionar cofradía desde query param (solo setea el id, el cambio de vista se hace en useEffect)
   const handleCofradiaFromQuery = (id: number) => {
     setSelectedId(id);
-    setView('DETAIL');
   };
+
+  // Cambiar a vista DETAIL si selectedId cambia por query param
+  useEffect(() => {
+    if (selectedId !== null && view !== 'DETAIL') {
+      setView('DETAIL');
+    }
+  }, [selectedId]);
 
   // 2. Filtrar Lista
   useEffect(() => {
@@ -107,13 +113,13 @@ function SigueteoContent() {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };// Limpiar query params de la URL
+  };
+
+  const handleBackToList = () => {
+    // Limpiar query params de la URL
     router.push('/sigueteo', { scroll: false });
     
     // Limpiar estados
-    
-
-  const handleBackToList = () => {
     setSelectedId(null);
     setView('LIST');
     setDetail(null);

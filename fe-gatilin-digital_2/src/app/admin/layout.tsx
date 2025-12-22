@@ -72,6 +72,12 @@ export default function AdminLayout({
               <NavLink href="/admin" label="Dashboard" icon="📊" />
               <NavLink href="/admin/cofradias" label="Cofradías" icon="⛪" />
               <NavLink href="/admin/usuarios" label="Localizadores" icon="👥" />
+              <NavLink href="/admin/organizaciones" label="Organizaciones" icon="🏢" />
+              <NavLink href="/admin/bordadurias" label="Bordadurías" icon="🧵" />
+              <NavLink href="/admin/cofrades" label="Cofrades" icon="🎭" />
+              <NavLink href="/admin/eventos" label="Eventos" icon="📅" />
+              <NavLink href="/admin/reportes" label="Reportes" icon="📋" />
+              <NavLink href="/admin/participantes" label="Participantes" icon="📝" />
             </div>
           </div>
         </nav>

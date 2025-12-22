@@ -3,7 +3,7 @@ import "./globals.css";
 
 import Navbar from "@/components/Navbar";
 import FloatingReportButton from "@/components/FloatingButtons";
-import WelcomeModal from "@/components/WelcomeModal";
+// import WelcomeModal from "@/components/WelcomeModal";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
@@ -36,7 +36,7 @@ export default function RootLayout({
         <Navbar />
         
         {/* Modal de bienvenida (solo aparece una vez) */}
-        <WelcomeModal />
+        {/* <WelcomeModal /> */}
         
         {/* Botón flotante de reporte (Matraca) */}
         <FloatingReportButton />

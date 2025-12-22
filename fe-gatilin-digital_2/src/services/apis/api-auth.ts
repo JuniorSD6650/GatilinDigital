@@ -182,3 +182,15 @@ export const getAuthHeaders = () => {
     ...(token && { 'Authorization': `Bearer ${token}` }),
   };
 };
+
+/**
+ * Headers de autorización para FormData (sin Content-Type)
+ */
+export const getAuthHeadersForFormData = (): Record<string, string> => {
+  const token = getAuthToken();
+  if (!token) return {};
+  return {
+    'Authorization': `Bearer ${token}`,
+  };
+};
+

@@ -162,9 +162,45 @@ export default function FestivalPage() {
 
         {/* Controles: Selector de día y búsqueda */}
         <div className="mb-8 space-y-4">
-          {/* Selector de días - Carrusel horizontal */}
-          <div className="relative">
-            <div className="flex gap-3 overflow-x-auto pb-4 px-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          {/* Selector de días - Carrusel horizontal con navegación */}
+          <div className="relative group">
+            {/* Botón Izquierda - Solo visible en desktop */}
+            <button
+              onClick={() => {
+                const container = document.getElementById('dias-scroll');
+                if (container) {
+                  container.scrollBy({ left: -200, behavior: 'smooth' });
+                }
+              }}
+              className="
+                hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10
+                items-center justify-center w-10 h-10 rounded-full
+                bg-negrito-card/90 backdrop-blur-sm border border-white/20
+                text-white hover:bg-festivo-blue hover:border-festivo-blue
+                transition-all opacity-0 group-hover:opacity-100
+                shadow-lg hover:shadow-festivo-blue/50
+              "
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Container de días con scroll oculto */}
+            <div 
+              id="dias-scroll"
+              className="flex gap-3 overflow-x-auto pb-4 px-2 md:px-12 scroll-smooth"
+              style={{
+                scrollbarWidth: 'none', // Firefox
+                msOverflowStyle: 'none', // IE/Edge
+              }}
+            >
+              <style jsx>{`
+                #dias-scroll::-webkit-scrollbar {
+                  display: none; // Chrome, Safari, Opera
+                }
+              `}</style>
+              
               {dias.map((dia) => {
                 const fechaInfo = formatFechaCorta(dia);
                 const esHoy = isToday(dia);
@@ -193,6 +229,28 @@ export default function FestivalPage() {
                 );
               })}
             </div>
+
+            {/* Botón Derecha - Solo visible en desktop */}
+            <button
+              onClick={() => {
+                const container = document.getElementById('dias-scroll');
+                if (container) {
+                  container.scrollBy({ left: 200, behavior: 'smooth' });
+                }
+              }}
+              className="
+                hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10
+                items-center justify-center w-10 h-10 rounded-full
+                bg-negrito-card/90 backdrop-blur-sm border border-white/20
+                text-white hover:bg-festivo-blue hover:border-festivo-blue
+                transition-all opacity-0 group-hover:opacity-100
+                shadow-lg hover:shadow-festivo-blue/50
+              "
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
 
           {/* Barra de búsqueda */}

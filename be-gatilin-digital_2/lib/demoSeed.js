@@ -388,7 +388,44 @@ const imprimirCredenciales = ({ credenciales, resumen }, log = console.log) => {
   console.table(credenciales);
 };
 
+/**
+ * Simulador de recorrido (solo modo demo): cada minuto desplaza un poco a las
+ * cofradías de la demo por el centro de Huánuco y renueva su hora, para que el
+ * mapa siga "en vivo" durante toda una presentación. Solo actúa si la demo está
+ * cargada (existe la cuenta admin demo) y únicamente sobre las cofradías de
+ * UBICACIONES que están compartiendo: nunca toca datos reales.
+ */
+const iniciarSimulacionDemo = (knex, { cadaMs = 60_000, log = console.log } = {}) => {
+  const random = crearRandom(Date.now() % 100000);
+  let paso = 0;
+  const mover = async () => {
+    try {
+      if (!(await knex('usuarios').where('username', CUENTAS[0].username).first('id'))) return;
+      paso += 1;
+      for (const u of UBICACIONES) {
+        // Recorrido circular suave (~60 m) alrededor de su punto de partida
+        const ang = (paso / 12) * 2 * Math.PI + u.id;
+        const lat = u.lat + Math.sin(ang) * 0.00055 + (random() - 0.5) * 0.00008;
+        const lng = u.lng + Math.cos(ang) * 0.00055 + (random() - 0.5) * 0.00008;
+        await knex('cofradia').where({ id: u.id, compartiendo: true }).update({
+          lat: lat.toFixed(7), lng: lng.toFixed(7),
+          ubicacion_link: `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`,
+          ubicacion_link_actualizado: knex.fn.now(),
+        });
+      }
+    } catch (err) {
+      log('Simulación demo: no se pudo actualizar (' + (err.message || err.code) + ')');
+    }
+  };
+  mover();
+  const id = setInterval(mover, cadaMs);
+  id.unref?.();
+  log('DEMO_DATA=true: simulación de recorrido activa (las cofradías demo se mueven cada minuto).');
+  return () => clearInterval(id);
+};
+
 module.exports = {
+  iniciarSimulacionDemo,
   runDemoSeed, baseDeDatosVacia, resetearBaseDeDatos, imprimirCredenciales,
   DEMO_PASSWORD_DEFAULT, CUENTAS, TABLAS_SNAPSHOT, SNAPSHOT_DIR, SNAPSHOT_FILE, anonimizarFila,
 };

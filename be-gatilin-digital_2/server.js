@@ -48,6 +48,7 @@ const start = async () => {
       console.log(config.frontendDir ? `Web servida desde ${config.frontendDir}` : 'Web no encontrada (FRONTEND_DIR): solo API');
       if (!push.habilitado) console.log('Notificaciones push desactivadas (faltan VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY).');
       push.iniciarProgramador();
+      if (process.env.DEMO_DATA === 'true') require('./lib/demoSeed').iniciarSimulacionDemo(knex);
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {

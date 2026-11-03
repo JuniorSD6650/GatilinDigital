@@ -22,6 +22,10 @@ app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: false,
+    // OpenStreetMap exige un Referer válido para servir las teselas del mapa
+    // (con "no-referrer", el valor por defecto de helmet, bloquea la app).
+    // Este valor solo envía el dominio a otros sitios, nunca la ruta completa.
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 // La API solo devuelve JSON/archivos: no necesita cargar nada

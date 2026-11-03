@@ -20,10 +20,15 @@ COPY fe-gatilin-digital_2/ ./
 
 # URL pública (metadatos / Open Graph). En Coolify marca APP_URL como "Build Variable".
 ARG APP_URL
+# Opcional: otro proveedor de teselas para el mapa (por defecto OpenStreetMap)
+ARG NEXT_PUBLIC_MAP_TILES_URL=""
+ARG NEXT_PUBLIC_MAP_ATTRIBUTION=""
 # La API vive en el mismo dominio: rutas relativas (/api/...). Vacía a propósito
 # para ignorar cualquier NEXT_PUBLIC_API_BASE_URL antigua.
 ENV NEXT_PUBLIC_API_BASE_URL="" \
     NEXT_PUBLIC_SITE_URL=${APP_URL} \
+    NEXT_PUBLIC_MAP_TILES_URL=${NEXT_PUBLIC_MAP_TILES_URL} \
+    NEXT_PUBLIC_MAP_ATTRIBUTION=${NEXT_PUBLIC_MAP_ATTRIBUTION} \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 RUN npm run build

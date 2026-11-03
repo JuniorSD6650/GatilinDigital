@@ -8,6 +8,10 @@ import type { CofradiaMapa } from '@/services/apis/api-normal';
 import { getDisplayColor } from '@/lib/color';
 import { HUANUCO, haceCuanto, estaEnVivo } from './utils';
 
+const TILES_URL = process.env.NEXT_PUBLIC_MAP_TILES_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILES_ATTRIBUTION =
+  process.env.NEXT_PUBLIC_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
 const icono = (c: CofradiaMapa, seleccionada: boolean) => {
@@ -58,13 +62,17 @@ export default function MapaLeaflet({ cofradias, seleccionadaId, onSelect, miUbi
   useEffect(() => {
     if (!contRef.current || mapRef.current) return;
     const map = L.map(contRef.current, { center: HUANUCO, zoom: 14, zoomControl: true, attributionControl: true });
-    // Teselas de OpenStreetMap: no requieren API key (CARTO ahora sí la pide).
+    // Teselas: OpenStreetMap por defecto (sin API key). Su política de uso exige
+    // un Referer válido: se pide explícitamente (y el servidor ya no envía "no-referrer").
+    // Para otro proveedor (p. ej. uno con clave propia) define NEXT_PUBLIC_MAP_TILES_URL
+    // y NEXT_PUBLIC_MAP_ATTRIBUTION al compilar.
     // El tono oscuro se logra con un filtro CSS en .gd-tiles-oscuras (globals.css),
     // que solo afecta al fondo: los marcadores conservan sus colores reales.
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(TILES_URL, {
       maxZoom: 19,
       className: 'gd-tiles-oscuras',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: TILES_ATTRIBUTION,
     }).addTo(map);
     mapRef.current = map;
     const markers = markersRef.current;

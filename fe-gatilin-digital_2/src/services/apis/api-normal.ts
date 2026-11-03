@@ -43,6 +43,8 @@ export interface CofradiaResumen {
   tiene_ubicacion?: boolean;
   /** dd/mm/yyyy HH:mm:ss */
   ubicacion_link_actualizado?: string | null;
+  /** Minutos desde la última ubicación compartida (null si nunca compartió) */
+  minutos_desde_actualizacion?: number | null;
   actividades?: CofradiaActividad[];
 }
 

@@ -37,15 +37,8 @@ export const SECTIONS: SectionLink[] = [
     name: 'Sigueteo',
     href: '/sigueteo',
     imageSrc: '/icons/btn-negritos-azul.svg',
-    description: 'Encuentra a tu cofradía, síguela en su recorrido y consulta su agenda.',
+    description: 'Encuentra a tu cofradía, mira en el mapa dónde está ahora y consulta su agenda.',
     accent: '#12c7e6',
-  },
-  {
-    name: 'Mapa',
-    href: '/mapa',
-    imageSrc: '/icons/btn-negritos-azul.svg',
-    description: 'Mira en vivo dónde están las cofradías ahora mismo.',
-    accent: '#22d3a6',
   },
   // Pañuelos verdes
   {

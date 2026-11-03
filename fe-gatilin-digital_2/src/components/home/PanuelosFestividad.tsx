@@ -4,10 +4,10 @@ import { SECTIONS } from '@/lib/constants';
 import { readableTextOn } from '@/lib/color';
 
 /**
- * Los pañuelos de la portada (uno por sección). La cuadrícula se dimensiona
+ * Los 6 pañuelos de la portada (uno por sección). La cuadrícula se dimensiona
  * según el alto de la pantalla para que todos entren en la primera vista:
- *  - celular: 2 por fila (4 filas)  -> ancho = alto disponible / 2
- *  - md+:     4 por fila (2 filas)  -> ancho = alto disponible x 2
+ *  - celular: 2 por fila (3 filas)  -> ancho = alto disponible x 2/3
+ *  - md+:     3 por fila (2 filas)  -> ancho = alto disponible x 3/2
  * `--alto` es el alto que queda para la cuadrícula (pantalla - barra - títulos).
  */
 export default function PanuelosFestividad() {
@@ -16,14 +16,14 @@ export default function PanuelosFestividad() {
     // los pañuelos restantes quedan centrados (p. ej. 7 = 4 + 3).
     <ul
       className="mx-auto flex w-full flex-wrap justify-center
-        max-w-[max(17rem,min(100%,calc(var(--alto)/2)))] md:max-w-[max(36rem,min(100%,calc(var(--alto)*2)))]
+        max-w-[max(17rem,min(100%,calc(var(--alto)*2/3)))] md:max-w-[max(32rem,min(100%,calc(var(--alto)*3/2)))]
         [--alto:calc(100svh-17rem)] md:[--alto:calc(100svh-16rem)]"
     >
       {SECTIONS.map((s, i) => {
         const tinta = readableTextOn(s.accent);
         const sombraTexto = tinta === '#ffffff' ? '0 1px 3px rgba(0,0,0,0.55)' : '0 1px 2px rgba(255,255,255,0.35)';
         return (
-          <li key={s.href} className="w-1/2 px-1 py-0.5 animate-in md:w-1/4 md:px-2" style={{ animationDelay: `${120 + i * 70}ms` }}>
+          <li key={s.href} className="w-1/2 px-1 py-0.5 animate-in md:w-1/3 md:px-3" style={{ animationDelay: `${120 + i * 70}ms` }}>
             {/* Solo el rombo (enlace recortado) es clicable; el resto no recibe eventos */}
             <div className="group pointer-events-none relative aspect-square w-full [container-type:inline-size]">
               <div className="panuelo-sway absolute inset-0 origin-top transition-transform duration-300 group-hover:scale-[1.04] group-focus-within:scale-[1.04]">

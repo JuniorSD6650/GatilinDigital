@@ -109,11 +109,16 @@ router.get('/list', asyncH(async (req, res) => {
     (porCofradia[a.cod_cofradia] ||= []).push({ fecha: fmtFecha(a.fecha), direccion: a.direccion_actividad });
   }
 
+  const ahora = Date.now();
   res.json(cofradias.map(({ ubicacion_link, ubicacion_link_actualizado, compartiendo, ...c }) => ({
     ...c,
     tiene_ubicacion: Boolean(ubicacion_link),
     compartiendo: Boolean(compartiendo),
     ubicacion_link_actualizado: fmtFechaHora(ubicacion_link_actualizado),
+    // Mismo cálculo que /mapa: el front decide "en vivo" con una sola regla
+    minutos_desde_actualizacion: ubicacion_link_actualizado
+      ? Math.max(0, Math.round((ahora - new Date(ubicacion_link_actualizado).getTime()) / 60000))
+      : null,
     actividades: porCofradia[c.id] || [],
   })));
 }));
@@ -338,7 +343,7 @@ const actualizarUbicacion = async (req, res, cofradiaId) => {
     push.notificarSeguidores(cofradiaId, {
       title: `${cofradia.nickname_cofradia} está en recorrido`,
       body: 'Toca para ver dónde está ahora en el mapa.',
-      url: `/mapa?cofradia=${cofradia.slug || cofradiaId}`,
+      url: `/sigueteo?vista=mapa&cofradia_mapa=${cofradia.slug || cofradiaId}`,
       tag: `recorrido-${cofradiaId}`,
     }).catch((e) => console.warn('Push recorrido:', e.message));
   }

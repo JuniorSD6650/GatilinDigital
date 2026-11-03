@@ -294,7 +294,7 @@ export default function CofradiaDetail({ detail, onBack, loading, backLabel = 'V
             {detail.ubicacion_link ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Link
-                  href={`/mapa?cofradia=${encodeURIComponent(detail.slug || String(detail.id))}`}
+                  href={`/sigueteo?vista=mapa&cofradia_mapa=${encodeURIComponent(detail.slug || String(detail.id))}`}
                   className="btn px-6 py-3.5 text-sm sm:text-base hover:-translate-y-0.5"
                   style={{ backgroundColor: color, color: onColor, boxShadow: `0 12px 28px -10px ${withAlpha(color, 0.8)}` }}
                 >

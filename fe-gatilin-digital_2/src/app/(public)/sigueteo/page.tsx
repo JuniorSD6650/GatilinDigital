@@ -7,7 +7,9 @@ import SearchInput from '@/components/ui/SearchInput';
 import EmptyState from '@/components/ui/EmptyState';
 import CofradiaDetail from '@/components/CofradiaDetail';
 import AgendaPanel from '@/components/agenda/AgendaPanel';
-import { IconPin, IconSearch, IconCalendar, IconX } from '@/components/ui/Icons';
+import { estaEnVivo } from '@/components/mapa/utils';
+import MapaPanel from '@/components/mapa/MapaPanel';
+import { IconPin, IconSearch, IconCalendar, IconX, IconNavigation } from '@/components/ui/Icons';
 import { getCofradiaList, getCofradiaDetail, type CofradiaResumen, type CofradiaDetalle } from '@/services/apis/api-normal';
 import { getDisplayColor, accentOnDark } from '@/lib/color';
 
@@ -15,7 +17,8 @@ const ACCENT = '#12c7e6';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 type Orden = 'az' | 'votos' | 'recientes';
-type Vista = 'cofradias' | 'agenda';
+type Vista = 'cofradias' | 'mapa' | 'agenda';
+const VISTAS: Vista[] = ['cofradias', 'mapa', 'agenda'];
 
 // --- Utilidades de filtrado ---
 /** Minúsculas y sin tildes: "Huánuco" y "huanuco" coinciden */
@@ -44,15 +47,10 @@ const etiquetaFecha = (f: string) => {
   return `${Number(d)} ${MESES[Number(m) - 1] ?? m}`;
 };
 
-/** ¿La ubicación en vivo se actualizó hace menos de 3 horas? */
-const ubicacionReciente = (c: CofradiaResumen) => {
-  if (!c.tiene_ubicacion || !c.ubicacion_link_actualizado) return false;
-  const [fecha, hora] = c.ubicacion_link_actualizado.split(' ');
-  const [d, m, y] = fecha.split('/').map(Number);
-  const [hh, mm] = (hora ?? '0:0').split(':').map(Number);
-  const t = new Date(y, m - 1, d, hh, mm).getTime();
-  return Date.now() - t < 3 * 60 * 60 * 1000;
-};
+/** "En vivo": misma regla que el mapa (compartiendo y actualizado hace ≤ 15 min) */
+const ubicacionReciente = (c: CofradiaResumen) => estaEnVivo(c);
+/** Para ordenar por "ubicación más reciente" (sin ubicación al final) */
+const minutosUbicacion = (c: CofradiaResumen) => c.minutos_desde_actualizacion ?? Number.POSITIVE_INFINITY;
 
 // Escucha el query param ?cofradia=ID (siempre montado, solo reacciona a cambios de la URL)
 function QueryParamHandler({ onCofradiaSelect }: { onCofradiaSelect: (id: number) => void }) {
@@ -104,6 +102,8 @@ function SigueteoContent() {
   const [fecha, setFecha] = useState<string | null>(null);
   const [soloEnVivo, setSoloEnVivo] = useState(false);
   const [orden, setOrden] = useState<Orden>('az');
+  // En celular los filtros secundarios se pliegan (el buscador queda siempre visible)
+  const [verFiltros, setVerFiltros] = useState(false);
 
   // --- ESTADOS DE DETALLE ---
   const [detail, setDetail] = useState<CofradiaDetalle | null>(null);
@@ -111,11 +111,13 @@ function SigueteoContent() {
 
   const router = useRouter();
 
-  // --- PESTAÑAS: Cofradías | Agenda (?vista=agenda) ---
+  // --- PESTAÑAS: Cofradías | Mapa | Agenda (?vista=mapa|agenda) ---
   const searchParams = useSearchParams();
-  const vista: Vista = searchParams.get('vista') === 'agenda' ? 'agenda' : 'cofradias';
+  const vistaParam = searchParams.get('vista') as Vista | null;
+  const vista: Vista = vistaParam && VISTAS.includes(vistaParam) ? vistaParam : 'cofradias';
   const cofradiaAgenda = searchParams.get('cofradia_agenda') ?? '';
-  const cambiarVista = (v: Vista) => router.replace(v === 'agenda' ? '/sigueteo?vista=agenda' : '/sigueteo', { scroll: false });
+  const cofradiaMapa = searchParams.get('cofradia_mapa') ?? '';
+  const cambiarVista = (v: Vista) => router.replace(v === 'cofradias' ? '/sigueteo' : `/sigueteo?vista=${v}`, { scroll: false });
 
   // 1. Cargar lista
   useEffect(() => {
@@ -161,6 +163,7 @@ function SigueteoContent() {
   const hoy = hoyDDMMYYYY();
   const hayActividadHoy = fechas.includes(hoy);
   const hayEnVivo = list.some((c) => c.tiene_ubicacion);
+  const enVivoAhora = list.filter(ubicacionReciente).length;
 
   // 3. Filtrar y ordenar
   const q = normalizar(searchTerm);
@@ -192,7 +195,7 @@ function SigueteoContent() {
 
     items.sort((a, b) => {
       if (orden === 'votos') return (b.c.votos ?? 0) - (a.c.votos ?? 0);
-      if (orden === 'recientes') return Number(ubicacionReciente(b.c)) - Number(ubicacionReciente(a.c)) || a.c.nickname_cofradia.localeCompare(b.c.nickname_cofradia);
+      if (orden === 'recientes') return minutosUbicacion(a.c) - minutosUbicacion(b.c) || a.c.nickname_cofradia.localeCompare(b.c.nickname_cofradia);
       return a.c.nickname_cofradia.localeCompare(b.c.nickname_cofradia);
     });
     return items;
@@ -288,9 +291,10 @@ function SigueteoContent() {
       />
 
       {/* ===== Pestañas ===== */}
-      <div role="tablist" aria-label="Sigueteo" className="mb-6 inline-flex w-full rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:w-auto">
+      <div role="tablist" aria-label="Sigueteo" className="mb-6 flex w-full gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:inline-flex sm:w-auto">
         {([
           ['cofradias', 'Cofradías', <IconPin key="i" className="h-4 w-4" />],
+          ['mapa', 'Mapa', <IconNavigation key="i" className="h-4 w-4" />],
           ['agenda', 'Agenda', <IconCalendar key="i" className="h-4 w-4" />],
         ] as const).map(([v, texto, icono]) => (
           <button
@@ -299,17 +303,32 @@ function SigueteoContent() {
             role="tab"
             aria-selected={vista === v}
             onClick={() => cambiarVista(v)}
-            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all sm:flex-none ${
+            className={`relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-2.5 text-[13px] font-semibold transition-all sm:flex-none sm:gap-2 sm:px-5 sm:text-sm ${
               vista === v ? 'bg-[var(--accent)] text-noche shadow-md' : 'text-white/65 hover:text-white'
             }`}
           >
-            {icono} {texto}
+            {icono}
+            <span>
+              {texto}
+              {v === 'mapa' && <span className="hidden sm:inline"> en vivo</span>}
+            </span>
+            {v === 'mapa' && enVivoAhora > 0 && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 text-[11px] font-bold tabular-nums ${vista === v ? 'bg-noche/15' : 'bg-emerald-400/15 text-emerald-300'}`}
+                title={`${enVivoAhora} en vivo`}
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                {enVivoAhora}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {vista === 'agenda' ? (
         <AgendaPanel key={cofradiaAgenda} cofradiaInicial={cofradiaAgenda} />
+      ) : vista === 'mapa' ? (
+        <MapaPanel key={cofradiaMapa} cofradiaInicial={cofradiaMapa} onVerLista={() => cambiarVista('cofradias')} />
       ) : (
       <>
       {/* ===== Filtros ===== */}
@@ -322,6 +341,24 @@ function SigueteoContent() {
           className="w-full"
         />
 
+        <button
+          type="button"
+          onClick={() => setVerFiltros((v) => !v)}
+          aria-expanded={verFiltros}
+          className="flex w-full items-center justify-between text-sm font-semibold text-white/70 sm:hidden"
+        >
+          <span>
+            Más filtros
+            {(zona || fecha || soloEnVivo || orden !== 'az') && (
+              <span className="ml-2 rounded-full bg-[var(--accent)] px-2 text-xs text-noche">
+                {[zona, fecha, soloEnVivo, orden !== 'az'].filter(Boolean).length}
+              </span>
+            )}
+          </span>
+          <span aria-hidden className={`transition-transform ${verFiltros ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+
+        <div className={`space-y-4 ${verFiltros ? '' : 'hidden'} sm:block`}>
         {/* Zona */}
         {zonas.length > 1 && (
           <div>
@@ -386,6 +423,7 @@ function SigueteoContent() {
               </Chip>
             )}
           </div>
+        </div>
         </div>
 
         {/* Resumen */}

@@ -49,6 +49,8 @@ export default function AgendaPanel({ cofradiaInicial = '' }: { cofradiaInicial?
   const [qDebounced, setQDebounced] = useState('');
   const [soloFavoritas, setSoloFavoritas] = useState(false);
   const [exportando, setExportando] = useState(false);
+  // En celular los filtros se pliegan para que las actividades se vean de inmediato
+  const [verFiltros, setVerFiltros] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 350);
@@ -123,6 +125,8 @@ export default function AgendaPanel({ cofradiaInicial = '' }: { cofradiaInicial?
     }
   };
 
+  const filtrosActivos = [desde !== hoyISO(), hasta, cofradia, tipo, q.trim(), soloFavoritas].filter(Boolean).length;
+
   const limpiar = () => {
     setDesde(hoyISO());
     setHasta('');
@@ -148,8 +152,21 @@ export default function AgendaPanel({ cofradiaInicial = '' }: { cofradiaInicial?
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="card-fest mt-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_1fr_1.4fr]">
+      {/* Filtros (plegables en celular) */}
+      <button
+        type="button"
+        onClick={() => setVerFiltros((v) => !v)}
+        aria-expanded={verFiltros}
+        aria-controls="agenda-filtros"
+        className="mt-5 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white sm:hidden"
+      >
+        <span className="flex items-center gap-2">
+          <IconSearch className="h-4 w-4" /> Filtros y búsqueda
+          {filtrosActivos > 0 && <span className="rounded-full bg-[var(--accent,#12c7e6)] px-2 text-xs text-noche">{filtrosActivos}</span>}
+        </span>
+        <span aria-hidden className={`transition-transform ${verFiltros ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      <div id="agenda-filtros" className={`card-fest mt-3 gap-3 p-4 sm:mt-5 sm:grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_1fr_1.4fr] ${verFiltros ? 'grid' : 'hidden'}`}>
         <label className="flex min-w-0 flex-col gap-1 text-xs text-white/55">
           Desde
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={campo} />

@@ -1,5 +1,4 @@
 // Utilidades del mapa sin dependencia de Leaflet (seguras para el render estático)
-import type { CofradiaMapa } from '@/services/apis/api-normal';
 
 export const HUANUCO: [number, number] = [-9.9306, -76.2422];
 
@@ -12,6 +11,12 @@ export const haceCuanto = (min: number | null) => {
   return `hace ${Math.floor(h / 24)} d`;
 };
 
-/** En vivo = compartiendo GPS y actualizado en los últimos 15 minutos */
-export const estaEnVivo = (c: CofradiaMapa) =>
-  c.compartiendo && c.minutos_desde_actualizacion !== null && c.minutos_desde_actualizacion <= 15;
+/** Minutos sin actualizar la ubicación a partir de los cuales deja de considerarse "en vivo" */
+export const MINUTOS_EN_VIVO = 15;
+
+/**
+ * En vivo = compartiendo GPS y actualizado en los últimos 15 minutos.
+ * Regla única para el mapa, la lista de Sigueteo y la pestaña "Mapa".
+ */
+export const estaEnVivo = (c: { compartiendo?: boolean; minutos_desde_actualizacion?: number | null }) =>
+  Boolean(c.compartiendo) && c.minutos_desde_actualizacion != null && c.minutos_desde_actualizacion <= MINUTOS_EN_VIVO;

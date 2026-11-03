@@ -5,11 +5,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import SearchInput from '@/components/ui/SearchInput';
 import EmptyState from '@/components/ui/EmptyState';
-import Panuelo, { PANUELO_CLIP } from '@/components/ui/Panuelo';
 import CofradiaDetail from '@/components/CofradiaDetail';
 import { IconPin, IconSearch, IconCalendar, IconX } from '@/components/ui/Icons';
 import { getCofradiaList, getCofradiaDetail, type CofradiaResumen, type CofradiaDetalle } from '@/services/apis/api-normal';
-import { getDisplayColor, accentOnDark, readableTextOn } from '@/lib/color';
+import { getDisplayColor, accentOnDark } from '@/lib/color';
 
 const ACCENT = '#12c7e6';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -376,112 +375,84 @@ function SigueteoContent() {
         )}
       </section>
 
-      {/* ===== Pañuelos (2 por fila: el nombre va dentro y la forma es el botón) ===== */}
+      {/* ===== Tarjetas: 2 por fila en celular, hasta 5 en pantallas anchas ===== */}
       {loadingList ? (
-        <div className="mx-auto grid max-w-3xl grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-8">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="mx-auto aspect-square w-full max-w-[360px] p-[12%]">
-              <div className="h-full w-full rotate-45 animate-pulse rounded-[12%] bg-white/[0.05]" />
-            </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="h-36 animate-pulse rounded-[1.25rem] border border-white/5 bg-white/[0.04]" />
           ))}
         </div>
       ) : resultados.length > 0 ? (
-        <ul className="mx-auto grid max-w-3xl grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-8">
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {resultados.map(({ c, coincidencia, actividadesDia }, i) => {
             const color = getDisplayColor(c.color);
             const ink = accentOnDark(color);
-            const onColor = readableTextOn(color);
-            const sombraTexto = onColor === '#ffffff' ? '0 1px 3px rgba(0,0,0,0.55)' : '0 1px 2px rgba(255,255,255,0.35)';
             const enVivo = ubicacionReciente(c);
+            const zonas = zonasDe(c);
             // "Negritos Barrio San Juan" -> eyebrow "Negritos" + nombre "Barrio San Juan"
             const m = c.nickname_cofradia.match(/^(negritos?|cofrad[ií]a)\s+(.+)$/i);
-            const prefijo = m?.[1];
+            const prefijo = m?.[1] ?? 'Cofradía';
             const nombre = m?.[2] ?? c.nickname_cofradia;
             return (
-              <li key={c.id} className="flex flex-col items-center animate-in" style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}>
-                {/* Contenedor: no recibe clics; solo el rombo (botón recortado) es interactivo */}
-                <div className="group pointer-events-none relative aspect-square w-full max-w-[360px] [container-type:inline-size]">
-                  <div className="panuelo-sway absolute inset-0 origin-top transition-transform duration-300 group-hover:scale-[1.03] group-focus-within:scale-[1.03]">
-                    <span
-                      aria-hidden
-                      className="absolute inset-[22%] rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-50"
-                      style={{ backgroundColor: color }}
-                    />
-                    <Panuelo color={color} pliegue={false} className="relative h-full w-full" />
+              <li key={c.id} className="animate-in" style={{ animationDelay: `${Math.min(i, 15) * 30}ms` }}>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCofradia(c.id)}
+                  aria-label={`Ver ${c.nickname_cofradia}`}
+                  className="group card-fest relative flex h-full w-full flex-col overflow-hidden text-left transition-all duration-300 hover:-translate-y-1 hover:border-[var(--c)]/60 focus-visible:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c)]"
+                  style={{ '--c': color } as React.CSSProperties}
+                >
+                  {/* Franja con el color de la cofradía */}
+                  <span aria-hidden className="h-1.5 w-full shrink-0" style={{ backgroundColor: color }} />
+                  <span
+                    aria-hidden
+                    className="absolute -right-12 -top-12 h-32 w-32 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-40"
+                    style={{ backgroundColor: color }}
+                  />
 
-                    {/* Nombre centrado dentro del pañuelo */}
-                    <div
-                      aria-hidden
-                      className="absolute inset-x-[15%] inset-y-[29%] flex flex-col items-center justify-center text-center"
-                      style={{ color: onColor, textShadow: sombraTexto }}
-                    >
+                  <span className="relative flex flex-1 flex-col p-3.5 sm:p-4">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: ink }}>
+                        {prefijo}
+                      </span>
                       {enVivo && (
-                        <span
-                          className="mb-[2.5cqw] inline-flex items-center gap-[1.2cqw] rounded-full bg-emerald-500 px-[2.4cqw] py-[0.6cqw] font-bold uppercase tracking-wide text-noche shadow"
-                          style={{ fontSize: 'clamp(8px, 3.2cqw, 12px)', textShadow: 'none' }}
-                        >
-                          <span className="h-[1.6cqw] w-[1.6cqw] min-h-1 min-w-1 animate-pulse rounded-full bg-noche" />
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-noche">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-noche" />
                           En vivo
                         </span>
                       )}
-                      {prefijo && (
-                        <span
-                          className="font-semibold uppercase tracking-[0.18em] opacity-80"
-                          style={{ fontSize: 'clamp(8px, 3.4cqw, 13px)' }}
-                        >
-                          {prefijo}
-                        </span>
-                      )}
-                      <span
-                        className="line-clamp-3 font-display font-bold leading-[1.08] [overflow-wrap:anywhere]"
-                        style={{ fontSize: nombre.length > 26 ? 'clamp(12px, 5.8cqw, 21px)' : 'clamp(13px, 6.8cqw, 25px)' }}
-                      >
-                        {nombre}
+                    </span>
+
+                    <span className="mt-1.5 line-clamp-3 font-display text-[15px] font-semibold leading-snug text-white [overflow-wrap:anywhere] sm:text-base">
+                      {nombre}
+                    </span>
+
+                    {/* Zona: si no está registrada se muestra "Huánuco" (general) para no dejarlo vacío */}
+                    <span
+                      className="mt-auto flex items-center gap-1 pt-3 text-xs text-white/55"
+                      title={zonas.length ? undefined : 'Distrito no especificado: Huánuco en general'}
+                    >
+                      <IconPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{zonas.length ? zonas.join(' · ') : 'Huánuco'}</span>
+                    </span>
+
+                    {orden === 'votos' && typeof c.votos === 'number' && (
+                      <span className="mt-1.5 text-xs font-semibold tabular-nums" style={{ color: ink }}>
+                        {c.votos} {c.votos === 1 ? 'voto' : 'votos'}
                       </span>
-
-                      {/* Zona: si no está registrada se muestra "HUÁNUCO" (general) para no dejarlo vacío */}
-                      <span
-                        className="mt-[1.8cqw] inline-flex max-w-full items-center justify-center gap-[1cqw] font-semibold opacity-85"
-                        style={{ fontSize: 'clamp(9px, 3.6cqw, 14px)' }}
-                        title={zonasDe(c).length ? undefined : 'Distrito no especificado: Huánuco en general'}
-                      >
-                        <IconPin className="h-[1.15em] w-[1.15em] shrink-0" />
-                        {zonasDe(c).length ? (
-                          <span className="truncate">{zonasDe(c).join(' · ')}</span>
-                        ) : (
-                          <span className="uppercase tracking-[0.14em]">Huánuco</span>
-                        )}
+                    )}
+                    {coincidencia && (
+                      <span className="mt-2 line-clamp-2 rounded-lg bg-white/[0.05] px-2 py-1 text-[11px] leading-snug text-white/70">
+                        Pasa por: {coincidencia}
                       </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectCofradia(c.id)}
-                    aria-label={`Ver ${c.nickname_cofradia}`}
-                    className="pointer-events-auto absolute inset-0 cursor-pointer outline-none focus-visible:bg-white/10"
-                    style={{ clipPath: PANUELO_CLIP, WebkitTapHighlightColor: 'transparent' }}
-                  />
-                </div>
-
-                {/* Datos de apoyo (fuera del pañuelo, no clicables) */}
-                <div className="mt-1 flex max-w-[260px] flex-col items-center gap-1 px-1 text-center">
-                  {orden === 'votos' && typeof c.votos === 'number' && (
-                    <span className="text-xs font-semibold tabular-nums" style={{ color: ink }}>
-                      {c.votos} {c.votos === 1 ? 'voto' : 'votos'}
-                    </span>
-                  )}
-                  {coincidencia && (
-                    <span className="line-clamp-2 rounded-lg bg-white/[0.05] px-2 py-1 text-[11px] leading-snug text-white/70">
-                      Pasa por: {coincidencia}
-                    </span>
-                  )}
-                  {!coincidencia && actividadesDia.length > 0 && (
-                    <span className="text-[11px] text-white/50">
-                      {actividadesDia.length} {actividadesDia.length === 1 ? 'parada' : 'paradas'} ese día
-                    </span>
-                  )}
-                </div>
+                    )}
+                    {!coincidencia && actividadesDia.length > 0 && (
+                      <span className="mt-1.5 text-[11px] text-white/50">
+                        {actividadesDia.length} {actividadesDia.length === 1 ? 'parada' : 'paradas'} ese día
+                      </span>
+                    )}
+                  </span>
+                </button>
               </li>
             );
           })}

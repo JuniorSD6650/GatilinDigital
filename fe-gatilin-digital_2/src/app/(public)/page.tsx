@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { SECTIONS } from '@/lib/constants';
 import Cintas from '@/components/decor/Cintas';
 import Campana from '@/components/decor/Campana';
 import CadenaDivider from '@/components/decor/CadenaDivider';
 import FestividadCountdown from '@/components/home/FestividadCountdown';
+import PanuelosFestividad from '@/components/home/PanuelosFestividad';
 import { IconArrowRight, IconCalendar, IconPin, IconUserPlus, IconAlert } from '@/components/ui/Icons';
 
 const PERSONAJES = [
@@ -17,8 +17,11 @@ const PERSONAJES = [
 export default function Home() {
   return (
     <>
-      {/* ============ HÉROE ============ */}
-      <section className="relative isolate overflow-hidden">
+      {/* ============ PRIMERA VISTA: TODO SOBRE LA FESTIVIDAD (8 pañuelos, pantalla completa) ============ */}
+      <section
+        className="relative isolate flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden"
+        aria-labelledby="explora"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/images/negritos-de-huanuco-baile-tradicional.webp"
@@ -30,99 +33,74 @@ export default function Home() {
           className="absolute inset-0 -z-10"
           style={{
             background:
-              'linear-gradient(180deg, rgba(12,8,18,0.72) 0%, rgba(12,8,18,0.82) 55%, #0c0812 100%), radial-gradient(70% 60% at 50% 0%, rgba(255,31,143,0.18), transparent 70%)',
+              'linear-gradient(180deg, rgba(12,8,18,0.78) 0%, rgba(12,8,18,0.86) 55%, #0c0812 100%), radial-gradient(70% 60% at 50% 0%, rgba(255,31,143,0.2), transparent 70%)',
           }}
         />
 
         {/* Cintas colgando en las esquinas */}
-        <Cintas className="pointer-events-none absolute -top-2 -left-3 sm:left-8 h-32 w-16 sm:h-64 sm:w-28 opacity-90" count={7} />
-        <Cintas className="pointer-events-none absolute -top-2 -right-3 sm:right-8 h-32 w-16 sm:h-64 sm:w-28 opacity-90" count={7} mirror />
+        <Cintas className="pointer-events-none absolute -top-2 -left-3 sm:left-6 h-28 w-14 sm:h-56 sm:w-24 opacity-90" count={7} />
+        <Cintas className="pointer-events-none absolute -top-2 -right-3 sm:right-6 h-28 w-14 sm:h-56 sm:w-24 opacity-90" count={7} mirror />
 
-        <div className="container-fest relative flex flex-col items-center pt-20 pb-28 text-center sm:pt-28 sm:pb-36">
-          <p className="eyebrow rounded-full border border-white/15 bg-black/30 px-4 py-2 text-white/80 backdrop-blur animate-in">
-            <Campana className="w-3.5 h-4" ring="none" />
-            Patrimonio Cultural de la Nación
+        <div className="container-fest relative flex flex-1 flex-col items-center justify-center pt-5 pb-12 text-center sm:pt-8">
+          <p className="eyebrow rounded-full border border-white/15 bg-black/30 px-3.5 py-1.5 text-[10px] text-white/80 backdrop-blur animate-in sm:text-xs">
+            <Campana className="w-3 h-3.5" ring="none" />
+            Festividad de los Negritos de Huánuco
           </p>
-
-          <h1 className="mt-7 font-display font-semibold tracking-tight text-white animate-in [animation-delay:80ms]">
-            <span className="block text-xl sm:text-2xl font-normal italic text-white/75">Festividad de los</span>
-            <span className="mt-1 block text-[2.9rem] leading-[0.95] sm:text-7xl lg:text-8xl">
-              Negritos{' '}
-              <span className="bg-gradient-to-b from-oro-claro via-oro to-oro-oscuro bg-clip-text text-transparent">
-                de Huánuco
-              </span>
-            </span>
+          <h1 id="explora" className="mt-3 font-display text-[2rem] font-semibold leading-tight tracking-tight text-white animate-in [animation-delay:60ms] sm:text-5xl">
+            Todo sobre la{' '}
+            <span className="bg-gradient-to-b from-oro-claro via-oro to-oro-oscuro bg-clip-text text-transparent">festividad</span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base sm:text-lg leading-relaxed text-white/75 animate-in [animation-delay:160ms]">
-            Cadenas que repican, cintas que vuelan y plumajes de mil colores: acompaña a las cofradías,
-            conoce su historia y vive la devoción al Niño Jesús.
-          </p>
-
-          <div className="mt-7 animate-in [animation-delay:220ms]">
-            <FestividadCountdown />
-          </div>
-
-          <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row animate-in [animation-delay:280ms]">
-            <Link href="/festival" className="btn btn-oro px-7 py-4 text-base">
-              <IconCalendar className="w-5 h-5" />
-              Ver Festival Oficial
-            </Link>
-            <Link href="/sigueteo" className="btn btn-ghost px-7 py-4 text-base">
-              <IconPin className="w-5 h-5" />
-              Sigue a tu cofradía
-            </Link>
+          <div className="mt-4 w-full sm:mt-6">
+            <PanuelosFestividad />
           </div>
         </div>
+
+        {/* Indicador para seguir bajando */}
+        <a
+          href="#festividad"
+          aria-label="Ver más"
+          className="absolute bottom-4 left-1/2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full border border-white/15 bg-black/30 text-white/70 backdrop-blur transition-colors hover:text-white"
+        >
+          <IconArrowRight className="h-4 w-4 rotate-90 animate-bounce" />
+        </a>
 
         <div className="absolute inset-x-0 bottom-0">
           <div className="plumaje-band plumaje-band-soft" />
         </div>
       </section>
 
-      {/* ============ SECCIONES ============ */}
-      <section className="container-fest pt-16 sm:pt-20" aria-labelledby="explora">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow text-oro">Explora</p>
-          <h2 id="explora" className="mt-3 font-display text-3xl sm:text-5xl font-semibold text-white">
-            Todo sobre la festividad
-          </h2>
-          <CadenaDivider className="mt-6 max-w-[260px] mx-auto" />
+      {/* ============ LA FESTIVIDAD: cuenta regresiva y accesos principales ============ */}
+      <section id="festividad" className="container-fest scroll-mt-16 pt-16 text-center sm:pt-20" aria-labelledby="festividad-titulo">
+        <p className="eyebrow mx-auto text-oro">Patrimonio Cultural de la Nación</p>
+        <h2 id="festividad-titulo" className="mt-3 font-display font-semibold tracking-tight text-white">
+          <span className="block text-lg sm:text-2xl font-normal italic text-white/75">Festividad de los</span>
+          <span className="mt-1 block text-[2.6rem] leading-[0.95] sm:text-6xl lg:text-7xl">
+            Negritos{' '}
+            <span className="bg-gradient-to-b from-oro-claro via-oro to-oro-oscuro bg-clip-text text-transparent">de Huánuco</span>
+          </span>
+        </h2>
+        <CadenaDivider className="mt-6 max-w-[260px] mx-auto" />
+
+        <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed text-white/75">
+          Cadenas que repican, cintas que vuelan y plumajes de mil colores: acompaña a las cofradías,
+          conoce su historia y vive la devoción al Niño Jesús.
+        </p>
+
+        <div className="mt-7 flex justify-center">
+          <FestividadCountdown />
         </div>
 
-        <ul className="mt-12 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-          {SECTIONS.map((s, i) => (
-            <li key={s.href} className="animate-in" style={{ animationDelay: `${i * 60}ms` }}>
-              <Link
-                href={s.href}
-                className="group card-fest relative flex h-full flex-col overflow-hidden p-4 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)]/50"
-                style={{ '--accent': s.accent } as React.CSSProperties}
-              >
-                <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent)]" />
-                <span
-                  aria-hidden
-                  className="absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-40"
-                  style={{ backgroundColor: s.accent }}
-                />
-
-                <div className="flex items-start justify-between">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={s.imageSrc}
-                    alt=""
-                    className="panuelo-sway h-14 w-14 sm:h-20 sm:w-20 origin-top drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]"
-                  />
-                  <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-full border border-white/10 text-white/50 transition-all group-hover:border-[var(--accent)] group-hover:bg-[var(--accent)] group-hover:text-white">
-                    <IconArrowRight className="w-4 h-4" />
-                  </span>
-                </div>
-
-                <h3 className="mt-4 sm:mt-6 font-display text-xl sm:text-2xl font-semibold text-white">{s.name}</h3>
-                <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-white/60">{s.description}</p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="mx-auto mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:justify-center">
+          <Link href="/festival" className="btn btn-oro px-7 py-4 text-base">
+            <IconCalendar className="w-5 h-5" />
+            Ver Festival Oficial
+          </Link>
+          <Link href="/sigueteo" className="btn btn-ghost px-7 py-4 text-base">
+            <IconPin className="w-5 h-5" />
+            Sigue a tu cofradía
+          </Link>
+        </div>
       </section>
 
       {/* ============ PERSONAJES ============ */}

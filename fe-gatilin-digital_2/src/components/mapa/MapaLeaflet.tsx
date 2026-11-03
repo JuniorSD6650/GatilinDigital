@@ -58,10 +58,13 @@ export default function MapaLeaflet({ cofradias, seleccionadaId, onSelect, miUbi
   useEffect(() => {
     if (!contRef.current || mapRef.current) return;
     const map = L.map(contRef.current, { center: HUANUCO, zoom: 14, zoomControl: true, attributionControl: true });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Teselas de OpenStreetMap: no requieren API key (CARTO ahora sí la pide).
+    // El tono oscuro se logra con un filtro CSS en .gd-tiles-oscuras (globals.css),
+    // que solo afecta al fondo: los marcadores conservan sus colores reales.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      className: 'gd-tiles-oscuras',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
     mapRef.current = map;
     const markers = markersRef.current;

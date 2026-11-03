@@ -3,12 +3,12 @@
  *  - Notificaciones push (recorridos y recordatorios).
  * Cambia VERSION al publicar para invalidar la caché antigua.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE_PAGINAS = `gatilin-paginas-${VERSION}`;
 const CACHE_ESTATICOS = `gatilin-estaticos-${VERSION}`;
 const CACHE_DATOS = `gatilin-datos-${VERSION}`;
 
-const PRECACHE = ['/', '/agenda', '/festival', '/sigueteo', '/mapa', '/offline.html', '/icons/icon-192.png', '/manifest.webmanifest'];
+const PRECACHE = ['/', '/festival', '/sigueteo', '/mapa', '/offline.html', '/icons/icon-192.png', '/manifest.webmanifest'];
 
 // Datos públicos que conviene tener sin conexión (red primero, caché si falla)
 const API_CACHEABLE = /\/api\/(eventos(\?|$|\/tipos)|festival|cofradia\/(list|mapa|ranking|slug\/)|organizacion|cofrades\/by-cofradia)/;

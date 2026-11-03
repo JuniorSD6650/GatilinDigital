@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import SearchInput from '@/components/ui/SearchInput';
 import EmptyState from '@/components/ui/EmptyState';
 import CofradiaDetail from '@/components/CofradiaDetail';
+import AgendaPanel from '@/components/agenda/AgendaPanel';
 import { IconPin, IconSearch, IconCalendar, IconX } from '@/components/ui/Icons';
 import { getCofradiaList, getCofradiaDetail, type CofradiaResumen, type CofradiaDetalle } from '@/services/apis/api-normal';
 import { getDisplayColor, accentOnDark } from '@/lib/color';
@@ -14,6 +15,7 @@ const ACCENT = '#12c7e6';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 type Orden = 'az' | 'votos' | 'recientes';
+type Vista = 'cofradias' | 'agenda';
 
 // --- Utilidades de filtrado ---
 /** Minúsculas y sin tildes: "Huánuco" y "huanuco" coinciden */
@@ -108,6 +110,12 @@ function SigueteoContent() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const router = useRouter();
+
+  // --- PESTAÑAS: Cofradías | Agenda (?vista=agenda) ---
+  const searchParams = useSearchParams();
+  const vista: Vista = searchParams.get('vista') === 'agenda' ? 'agenda' : 'cofradias';
+  const cofradiaAgenda = searchParams.get('cofradia_agenda') ?? '';
+  const cambiarVista = (v: Vista) => router.replace(v === 'agenda' ? '/sigueteo?vista=agenda' : '/sigueteo', { scroll: false });
 
   // 1. Cargar lista
   useEffect(() => {
@@ -275,10 +283,35 @@ function SigueteoContent() {
       <PageHeader
         eyebrow="Sigueteo"
         title="Sigue a tu cofradía"
-        description="Encuentra a tu cofradía favorita, mira dónde está ahora y acompáñala en su recorrido."
+        description="Encuentra a tu cofradía favorita, mira dónde está ahora y consulta su agenda de actividades."
         accent={ACCENT}
       />
 
+      {/* ===== Pestañas ===== */}
+      <div role="tablist" aria-label="Sigueteo" className="mb-6 inline-flex w-full rounded-2xl border border-white/10 bg-white/[0.03] p-1 sm:w-auto">
+        {([
+          ['cofradias', 'Cofradías', <IconPin key="i" className="h-4 w-4" />],
+          ['agenda', 'Agenda', <IconCalendar key="i" className="h-4 w-4" />],
+        ] as const).map(([v, texto, icono]) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={vista === v}
+            onClick={() => cambiarVista(v)}
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all sm:flex-none ${
+              vista === v ? 'bg-[var(--accent)] text-noche shadow-md' : 'text-white/65 hover:text-white'
+            }`}
+          >
+            {icono} {texto}
+          </button>
+        ))}
+      </div>
+
+      {vista === 'agenda' ? (
+        <AgendaPanel key={cofradiaAgenda} cofradiaInicial={cofradiaAgenda} />
+      ) : (
+      <>
       {/* ===== Filtros ===== */}
       <section aria-label="Filtros de búsqueda" className="card-fest mb-8 space-y-4 p-4 sm:p-5">
         <SearchInput
@@ -467,6 +500,8 @@ function SigueteoContent() {
               : 'Vuelve pronto para seguir a las cofradías.'
           }
         />
+      )}
+      </>
       )}
     </div>
     </>

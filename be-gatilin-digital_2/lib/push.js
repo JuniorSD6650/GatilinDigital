@@ -82,7 +82,7 @@ const revisarRecordatorios = async () => {
     await notificarSeguidores(ev.cod_cofradia, {
       title: `${ev.nickname_cofradia}: ${tipo} en ${faltan} min`,
       body: `${String(ev.hora).slice(0, 5)} · ${ev.direccion_actividad}`,
-      url: `/agenda?cofradia=${ev.cod_cofradia}`,
+      url: `/sigueteo?vista=agenda&cofradia_agenda=${ev.cod_cofradia}`,
       tag: `evento-${ev.id}`,
     }, { soloAvisosEventos: true });
   }

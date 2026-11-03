@@ -400,3 +400,41 @@
 .gd-popup-actions a:hover { background: rgb(255 255 255 / 0.16); }
 .leaflet-control-attribution { background: rgb(12 8 18 / 0.75) !important; color: rgb(255 255 255 / 0.5) !important; }
 .leaflet-control-attribution a { color: rgb(255 255 255 / 0.7) !important; }
+
+/* Teselas de OpenStreetMap en modo oscuro (solo el fondo; marcadores intactos) */
+.gd-tiles-oscuras {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
+}
+
+/* =========================================================
+   DEVOCIÓN: luz, velas y estrellas
+   ========================================================= */
+@keyframes llama {
+  0%, 100% { transform: translateX(-50%) scale(1, 1) rotate(-1deg); opacity: 1; }
+  25% { transform: translateX(-52%) scale(0.94, 1.06) rotate(2deg); opacity: 0.92; }
+  50% { transform: translateX(-48%) scale(1.04, 0.95) rotate(-2deg); opacity: 1; }
+  75% { transform: translateX(-51%) scale(0.97, 1.04) rotate(1deg); opacity: 0.95; }
+}
+@keyframes halo-vela {
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.8; transform: translateX(-50%) scale(1.12); }
+}
+@keyframes titilar {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes rayos-giro {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes luz-respira {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+.vela-llama { animation: llama 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.vela-halo { animation: halo-vela 2.4s ease-in-out infinite; }
+.estrella-titila { animation: titilar 3.2s ease-in-out infinite; }
+.rayos-gloria { animation: rayos-giro 90s linear infinite; }
+.luz-respira { animation: luz-respira 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .vela-llama, .vela-halo, .estrella-titila, .rayos-gloria, .luz-respira { animation: none; }
+}

@@ -2,8 +2,12 @@
 
 import { useState, useRef, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
+/** Botón flotante y arrastrable de reporte (Matraca) */
 export default function FloatingButtons() {
+  const pathname = usePathname();
+
   // --- ESTADO PARA POSICIÓN ---
   const [position, setPosition] = useState<{ x: number, y: number } | null>(null);
 
@@ -17,10 +21,10 @@ export default function FloatingButtons() {
   const handleStart = (clientX: number, clientY: number, target: HTMLElement) => {
     isDragging.current = false;
     dragStartPos.current = { x: clientX, y: clientY };
-    
+
     const rect = target.getBoundingClientRect();
     elementOffset.current = { x: clientX - rect.left, y: clientY - rect.top };
-    
+
     if (!position) {
       setPosition({ x: rect.left, y: rect.top });
     }
@@ -90,60 +94,42 @@ export default function FloatingButtons() {
     }
   };
 
+  // En la propia página de reporte el botón no aporta nada
+  if (pathname === '/reportar') return null;
+
   return (
-    <>
-      <style>{`
-        /* Animación Matraca (Wiggle) */
-        @keyframes matraca-wiggle {
-          0%, 100% { transform: rotate(-5deg); }
-          50% { transform: rotate(5deg); }
-        }
-        .animate-matraca {
-          animation: matraca-wiggle 2s ease-in-out infinite;
-          filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.4)); 
-        }
-      `}</style>
-
-      {/* BOTÓN: REPORTAR (Matraca) */}
-      <div
-        ref={reportRef}
-        style={position 
-          ? { left: `${position.x}px`, top: `${position.y}px` } 
-          : { bottom: '30px', right: '30px' }
-        }
-        className="fixed z-50 cursor-grab active:cursor-grabbing touch-none select-none hover:scale-105 active:scale-95 transition-transform"
-        onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart}
+    <div
+      ref={reportRef}
+      style={position
+        ? { left: `${position.x}px`, top: `${position.y}px` }
+        : { bottom: '24px', right: '20px' }
+      }
+      className="fixed z-40 cursor-grab active:cursor-grabbing touch-none select-none"
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
+    >
+      <Link
+        href="/reportar"
+        onClick={handleClick}
+        draggable={false}
+        aria-label="Reportar una anomalía"
+        className="group relative flex flex-col items-center"
       >
-        <Link 
-          href="/reportar" 
-          onClick={handleClick}
-          draggable={false}
-          className="relative block animate-matraca"
-        >
-          {/* Texto Flotante */}
-          <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-            <span 
-              className="text-[11px] sm:text-xs font-black text-yellow-300 uppercase tracking-widest whitespace-nowrap" 
-              style={{ 
-                textShadow: '0px 2px 4px rgba(0,0,0,0.9), 0px 0px 8px rgba(250,204,21,0.5)',
-              }}
-            >
-              Reportar
-            </span>
-          </div>
-
-          {/* Icono Matraca */}
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20">
-             <img
-              src="/icons/btn-matraca-reporte.svg"
-              alt="Reportar Anomalía"
-              className="w-full h-full object-contain relative z-10"
-              draggable={false}
-            />
-          </div>
-        </Link>
-      </div>
-    </>
+        {/* Matraca */}
+        <span className="relative grid h-16 w-16 sm:h-[72px] sm:w-[72px] place-items-center rounded-full bg-noche/75 ring-1 ring-oro/40 shadow-[0_10px_30px_-8px_rgba(242,193,78,0.55)] backdrop-blur transition-transform group-hover:scale-105 group-active:scale-95">
+          <span aria-hidden className="absolute inset-0 rounded-full ring-2 ring-oro/30 animate-ping [animation-duration:2.8s]" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons/btn-matraca-reporte.svg"
+            alt=""
+            className="relative h-12 w-12 sm:h-14 sm:w-14 object-contain animate-matraca"
+            draggable={false}
+          />
+        </span>
+        <span className="mt-1.5 rounded-full border border-oro/40 bg-noche/85 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-oro backdrop-blur">
+          Reportar
+        </span>
+      </Link>
+    </div>
   );
 }

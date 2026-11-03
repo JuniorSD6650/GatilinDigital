@@ -1,0 +1,35 @@
+# Dependencias y builds locales (se regeneran dentro de la imagen)
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Variables de entorno: se configuran en Coolify, nunca dentro de la imagen
+.env
+.env.*
+
+# Control de versiones / editores / SO
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Documentación y herramientas de desarrollo
+*.md
+eslint.config.mjs
+.vercel
+
+# Archivos Docker
+Dockerfile
+.dockerignore

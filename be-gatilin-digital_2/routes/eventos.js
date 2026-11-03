@@ -1,13 +1,17 @@
 const express = require('express');
-const router = express.Router();
-const knexConfig = require('../knexfile');
-const knex = require('knex')(knexConfig);
 const { format } = require('date-fns');
 
-const fs = require('fs');
-const multer = require('multer');
-const ExcelJS = require('exceljs');
-const upload = multer({ dest: 'uploads/' });
+const knex = require('../lib/db');
+const config = require('../lib/config');
+const { requireAdmin } = require('../middleware/auth');
+const { excelUpload } = require('../middleware/upload');
+const { z, validate, textoOpc, textoReq, enteroReq, fechaISO, hora, paginacionQuery } = require('../middleware/validate');
+const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
+const { audit, diff } = require('../lib/audit');
+const { sendTemplate, sendXlsx, bulkImport } = require('../lib/excel');
+const { generarICS } = require('../lib/ics');
+
+const router = express.Router();
 
 const EVENTO_COLUMNS = [
   { header: 'Fecha', key: 'fecha', width: 20 },
@@ -18,291 +22,182 @@ const EVENTO_COLUMNS = [
   { header: 'Oferente', key: 'oferente', width: 50 },
   { header: 'Tipo Oferente', key: 'tipo_oferente', width: 20 },
   { header: 'Banda', key: 'banda', width: 20 },
-  { header: 'Código Cofradía', key: 'cod_cofradia', width: 20 }
+  { header: 'Código Cofradía', key: 'cod_cofradia', width: 20 },
 ];
 
-// Descargar plantilla
-router.get('/template', async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Plantilla Eventos');
+// Fecha de MySQL (objeto Date local) → 'YYYY-MM-DD'
+const isoLocal = (d) => (d ? format(new Date(d), 'yyyy-MM-dd') : null);
+const formatear = (e) => ({ ...e, fecha: e.fecha ? format(new Date(e.fecha), 'dd/MM/yyyy') : null, fecha_iso: isoLocal(e.fecha) });
 
-    worksheet.columns = EVENTO_COLUMNS;
-    worksheet.getRow(1).font = { bold: true };
+// ---- Validación ----
+const conDefecto = (def, max = 255) => z.preprocess((v) => (v === null || v === undefined || String(v).trim() === '' ? def : String(v).trim()), z.string().max(max));
+const campos = {
+  fecha: fechaISO,
+  tipo_dia: conDefecto('Ninguno'),
+  tipo_evento: conDefecto('ninguno'),
+  hora: hora,
+  direccion_actividad: textoReq(255),
+  oferente: textoReq(255),
+  tipo_oferente: conDefecto('Oferente'),
+  banda: conDefecto('Ninguna'),
+  cod_cofradia: enteroReq,
+};
+const crearSchema = z.object(campos);
+const editarSchema = z.object(campos).partial();
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=Plantilla_Eventos.xlsx'
-    );
-
-    await workbook.xlsx.write(res);
-    res.end();
-  } catch (error) {
-    res.status(500).json({ error: 'Error al generar la plantilla', details: error.message });
-  }
+const filtrosQuery = paginacionQuery.extend({
+  cod_cofradia: z.coerce.number().int().positive().optional(),
+  desde: fechaISO.optional(),
+  hasta: fechaISO.optional(),
+  fecha: fechaISO.optional(),
+  tipo_evento: z.string().trim().max(100).optional(),
+  orden: z.enum(['agenda', 'recientes']).optional(),
+  ids: z.string().regex(/^\d+(,\d+)*$/).optional(),
 });
 
+const existeCofradia = async (id) => Boolean(await knex('cofradia').where('id', id).first('id'));
 
-// Obtener todos los eventos
-router.get('/', async (req, res) => {
-  const { cod_cofradia } = req.query;
+const consultaBase = (f) => {
+  let q = knex('eventos')
+    .select('eventos.*', 'cofradia.nickname_cofradia', 'cofradia.color', 'cofradia.slug')
+    .leftJoin('cofradia', 'eventos.cod_cofradia', 'cofradia.id');
 
-  try {
-    let query = knex('eventos')
-      .select(
-        'eventos.*',
-        'cofradia.nickname_cofradia'
-      )
-      .leftJoin('cofradia', 'eventos.cod_cofradia', 'cofradia.id')
-      .orderBy('eventos.id', 'desc');
+  if (f.cod_cofradia) q = q.where('eventos.cod_cofradia', f.cod_cofradia);
+  if (f.fecha) q = q.where('eventos.fecha', f.fecha);
+  if (f.desde) q = q.where('eventos.fecha', '>=', f.desde);
+  if (f.hasta) q = q.where('eventos.fecha', '<=', f.hasta);
+  if (f.tipo_evento) q = q.where('eventos.tipo_evento', f.tipo_evento);
+  if (f.ids) q = q.whereIn('eventos.id', f.ids.split(',').map(Number).slice(0, 200));
+  q = searchIn(q, f.q, ['eventos.direccion_actividad', 'eventos.oferente', 'eventos.banda', 'cofradia.nickname_cofradia']);
 
-    // Si se envía cod_cofradia, aplicar el filtro
-    if (cod_cofradia) {
-      query = query.where('eventos.cod_cofradia', cod_cofradia);
-    }
+  return f.orden === 'agenda'
+    ? q.orderBy('eventos.fecha', 'asc').orderBy('eventos.hora', 'asc')
+    : q.orderBy('eventos.id', 'desc');
+};
 
-    let eventos = await query;
+// =====================================================================
+// PÚBLICO
+// =====================================================================
 
-    // Formatear la fecha
-    eventos = eventos.map(evento => ({
-      ...evento,
-      fecha: evento.fecha ? format(new Date(evento.fecha), 'dd/MM/yyyy') : null
-    }));
+// Listado con filtros (agenda pública y panel)
+router.get('/', validate(filtrosQuery, 'query'), asyncH(async (req, res) => {
+  res.json(await paginate(req, consultaBase(req.query), { idColumn: 'eventos.id', map: formatear }));
+}));
 
-    res.json(eventos);
-  } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo los eventos',
-      details: err.message || err
-    });
-  }
-});
+// Tipos de evento distintos (para filtros)
+router.get('/tipos', asyncH(async (req, res) => {
+  const filas = await knex('eventos').distinct('tipo_evento').whereNotNull('tipo_evento').orderBy('tipo_evento');
+  res.json(filas.map((f) => f.tipo_evento).filter((t) => t && t.toLowerCase() !== 'ninguno'));
+}));
 
-// Obtener un evento por ID
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
+// Calendario .ics: un evento (?id=) o la agenda filtrada (?cod_cofradia=, ?desde=...)
+router.get('/ics', validate(filtrosQuery.extend({ id: z.coerce.number().int().positive().optional() }), 'query'), asyncH(async (req, res) => {
+  const f = { ...req.query, orden: 'agenda' };
+  if (req.query.id) f.ids = String(req.query.id);
+  const eventos = await consultaBase(f).limit(500);
+  if (req.query.id && eventos.length === 0) return notFound(res, 'Evento no encontrado');
 
-  try {
-    let evento = await knex('eventos')
-      .select(
-        'eventos.*',
-        'cofradia.nickname_cofradia'
-      )
-      .leftJoin('cofradia', 'eventos.cod_cofradia', 'cofradia.id')
-      .where('eventos.id', id)
-      .first();
-
-    if (!evento) {
-      return res.status(404).json({ error: 'Evento no encontrado' });
-    }
-
-    // Formatear la fecha
-    evento.fecha = evento.fecha ? format(new Date(evento.fecha), 'dd/MM/yyyy') : null;
-
-    res.json(evento);
-  } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo el evento',
-      details: err.message || err
-    });
-  }
-});
-
-// Cargar datos por excel
-router.post('/bulk-upload', upload.single('file'), async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(req.file.path);
-    const worksheet = workbook.getWorksheet(1);
-    const failedRecords = [];
-
-    for (let i = 2; i <= worksheet.rowCount; i++) {
-      const row = worksheet.getRow(i);
-
-      // Procesamos la fecha (formato 'yyyy-mm-dd')
-      let fecha = null;
-      if (row.getCell(1).value instanceof Date) {
-        fecha = row.getCell(1).value.toISOString().split('T')[0]; // Convertir a 'yyyy-mm-dd'
-      }
-
-      // Procesamos la hora (debe ser cadena 'HH:MM:SS')
-      let hora = null;
-      const horaValue = row.getCell(4).value;
-
-      if (typeof horaValue === 'string') {
-        // Si la hora ya está en formato 'HH:MM:SS', la usamos tal cual
-        hora = horaValue.trim();
-      } else if (horaValue instanceof Date) {
-        // Si la celda contiene un objeto Date, extraemos la hora
-        let [hour, minute, second] = [horaValue.getHours(), horaValue.getMinutes(), horaValue.getSeconds()];
-
-        // Ajuste: sumamos el desfase de 5 horas, 8 minutos y 36 segundos
-        hour += 5;      // Sumamos 5 horas
-        minute += 8;    // Sumamos 8 minutos
-        second += 36;   // Sumamos 36 segundos
-
-        // Si los segundos superan 60, ajustamos los minutos
-        if (second >= 60) {
-          minute += Math.floor(second / 60); // Sumamos los minutos extra
-          second = second % 60;              // Ajustamos los segundos
-        }
-
-        // Si los minutos superan 60, ajustamos las horas
-        if (minute >= 60) {
-          hour += Math.floor(minute / 60);   // Sumamos las horas extra
-          minute = minute % 60;              // Ajustamos los minutos
-        }
-
-        // Aseguramos que la hora esté en formato 'HH:MM:SS'
-        hour = hour.toString().padStart(2, '0');
-        minute = minute.toString().padStart(2, '0');
-        second = second.toString().padStart(2, '0');
-
-        // Guardamos la hora ajustada
-        hora = `${hour}:${minute}:${second}`;
-      }
-
-      // Verificamos que la hora esté en formato 'HH:MM:SS'
-      if (!/^([01]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9])$/.test(hora)) {
-        console.warn(`Fila ${i} ignorada: la hora ${hora} no tiene el formato correcto.`);
-        continue;
-      }
-
-      const record = {
-        fecha: fecha || null,
-        tipo_dia: row.getCell(2).value?.toString().trim() || 'Ninguno',
-        tipo_evento: row.getCell(3).value?.toString().trim() || 'ninguno',
-        hora: hora || null, // Asegúrate de que la hora es una cadena en formato 'HH:MM:SS'
-        direccion_actividad: row.getCell(5).value?.toString().trim() || null,
-        oferente: row.getCell(6).value?.toString().trim() || null,
-        tipo_oferente: row.getCell(7).value?.toString().trim() || 'Oferente',
-        banda: row.getCell(8).value?.toString().trim() || 'Ninguna',
-        cod_cofradia: row.getCell(9).value ? parseInt(row.getCell(9).value) : null,
+  const ics = generarICS(
+    eventos.map((e) => {
+      const tipo = e.tipo_evento && e.tipo_evento.toLowerCase() !== 'ninguno' ? e.tipo_evento : 'Actividad';
+      return {
+        uid: `evento-${e.id}@gatilin.digital`,
+        fecha: isoLocal(e.fecha),
+        hora: String(e.hora),
+        titulo: `${tipo} · ${e.nickname_cofradia || 'Cofradía'}`,
+        descripcion: [
+          e.oferente && `Oferente: ${e.oferente}`,
+          e.banda && e.banda !== 'Ninguna' && `Banda: ${e.banda}`,
+          e.tipo_dia && e.tipo_dia !== 'Ninguno' && `Día: ${e.tipo_dia}`,
+        ].filter(Boolean).join('\n'),
+        lugar: e.direccion_actividad ? `${e.direccion_actividad}, Huánuco` : undefined,
+        url: e.slug ? `${config.frontendUrl}/cofradia?slug=${encodeURIComponent(e.slug)}` : undefined,
       };
+    }),
+    { nombre: eventos.length === 1 ? 'Gatilín Digital' : 'Agenda Gatilín Digital', tz: config.timezone }
+  );
 
-      // Verificamos si los campos obligatorios están presentes
-      if (!record.fecha || !record.hora || !record.direccion_actividad || !record.oferente || !record.cod_cofradia) {
-        console.warn(`Fila ${i} ignorada: faltan campos obligatorios.`);
-        continue;
-      }
+  const nombre = req.query.id ? `evento-${req.query.id}.ics` : 'agenda-gatilin.ics';
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${nombre}"`);
+  res.send(ics);
+}));
 
-      try {
-        await knex('eventos').insert(record);
-      } catch (error) {
-        console.error(`Error en fila ${i}:`, error.message);
-        failedRecords.push(record);
-      }
-    }
+// =====================================================================
+// ADMIN: plantilla, exportación y carga masiva
+// =====================================================================
 
-    fs.unlink(req.file.path, (err) => {
-      if (err) {
-        console.error('Error eliminando archivo temporal:', err.message);
-      } else {
-        console.log('Archivo temporal eliminado:', req.file.path);
-      }
-    });
+router.get('/template', requireAdmin, asyncH(async (req, res) => {
+  await sendTemplate(res, {
+    nombreHoja: 'Plantilla Eventos',
+    filename: 'Plantilla_Eventos.xlsx',
+    columns: EVENTO_COLUMNS,
+    ejemplo: {
+      fecha: '2026-12-25', tipo_dia: 'Víspera', tipo_evento: 'Misa', hora: '17:00', direccion_actividad: 'Jr. Ejemplo 123',
+      oferente: 'Familia Ejemplo', tipo_oferente: 'Oferente', banda: 'Banda Ejemplo', cod_cofradia: 1,
+    },
+  });
+}));
 
-    // Si hay filas con errores, las procesamos
-    if (failedRecords.length > 0) {
-      const failedWorkbook = new ExcelJS.Workbook();
-      const failedWorksheet = failedWorkbook.addWorksheet('Errores');
+router.get('/export', requireAdmin, validate(filtrosQuery, 'query'), asyncH(async (req, res) => {
+  const filas = await consultaBase({ ...req.query, orden: 'agenda' });
+  await sendXlsx(res, {
+    nombreHoja: 'Agenda',
+    filename: `Agenda_Eventos_${format(new Date(), 'yyyyMMdd')}.xlsx`,
+    columns: [...EVENTO_COLUMNS.slice(0, 8), { header: 'Cofradía', key: 'nickname_cofradia', width: 40 }],
+    rows: filas.map(formatear).map((e) => ({ ...e, hora: String(e.hora).slice(0, 5) })),
+  });
+}));
 
-      failedWorksheet.columns = EVENTO_COLUMNS;
-      failedWorksheet.getRow(1).font = { bold: true };
+router.post('/bulk-upload', requireAdmin, excelUpload, (req, res) =>
+  bulkImport(req, res, {
+    entidad: 'evento',
+    columns: EVENTO_COLUMNS,
+    schema: crearSchema,
+    check: async (rec) => ((await existeCofradia(rec.cod_cofradia)) ? null : `La cofradía ${rec.cod_cofradia} no existe.`),
+    insert: (rec, db) => db('eventos').insert(rec),
+  })
+);
 
-      failedRecords.forEach((record) => {
-        failedWorksheet.addRow(record);
-      });
+router.get('/:id', asyncH(async (req, res) => {
+  const evento = await knex('eventos')
+    .select('eventos.*', 'cofradia.nickname_cofradia', 'cofradia.color', 'cofradia.slug')
+    .leftJoin('cofradia', 'eventos.cod_cofradia', 'cofradia.id')
+    .where('eventos.id', req.params.id)
+    .first();
+  if (!evento) return notFound(res, 'Evento no encontrado');
+  res.json(formatear(evento));
+}));
 
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename=Errores_Carga_Eventos.xlsx'
-      );
+// =====================================================================
+// CRUD (solo admin)
+// =====================================================================
 
-      await failedWorkbook.xlsx.write(res);
-      return res.end();
-    }
+router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) => {
+  if (!(await existeCofradia(req.body.cod_cofradia))) return badRequest(res, 'La cofradía seleccionada no existe.');
+  const [id] = await knex('eventos').insert(req.body);
+  await audit(req, 'crear', 'evento', id, { fecha: req.body.fecha, cod_cofradia: req.body.cod_cofradia });
+  res.status(201).json({ message: 'Evento creado con éxito', id });
+}));
 
-    res.status(200).json({ message: 'Datos cargados correctamente.' });
-  } catch (err) {
-    console.error('Error al procesar el archivo:', err.message);
+router.put('/:id', requireAdmin, validate(editarSchema), asyncH(async (req, res) => {
+  const evento = await knex('eventos').where('id', req.params.id).first();
+  if (!evento) return notFound(res, 'Evento no encontrado');
+  if (req.body.cod_cofradia && !(await existeCofradia(req.body.cod_cofradia))) return badRequest(res, 'La cofradía seleccionada no existe.');
 
-    fs.unlink(req.file.path, (unlinkErr) => {
-      if (unlinkErr) {
-        console.error('Error eliminando archivo temporal:', unlinkErr.message);
-      }
-    });
+  const updates = Object.fromEntries(Object.entries(req.body).filter(([, v]) => v !== undefined));
+  if (Object.keys(updates).length === 0) return badRequest(res, 'No se enviaron datos para actualizar.');
+  await knex('eventos').where('id', evento.id).update(updates);
+  await audit(req, 'editar', 'evento', evento.id, diff({ ...evento, fecha: isoLocal(evento.fecha) }, updates));
+  res.json({ message: 'Evento actualizado con éxito' });
+}));
 
-    res.status(500).json({ error: 'Error al procesar el archivo', details: err.message });
-  }
-});
-
-
-// Crear un nuevo evento
-router.post('/', async (req, res) => {
-  const { fecha, tipo_dia, tipo_evento, hora, direccion_actividad, oferente, tipo_oferente, banda, cod_cofradia } = req.body;
-  try {
-    const result = await knex('eventos').insert({
-      fecha, tipo_dia, tipo_evento, hora, direccion_actividad, oferente, tipo_oferente, banda, cod_cofradia
-    });
-
-    const newEventoId = result[0]; // El ID del nuevo registro
-
-    res.status(201).json({ message: 'Evento creado con éxito', id: newEventoId });
-  } catch (err) {
-    res.status(500).json({ error: 'Error creando el evento', details: err.message || err });
-  }
-});
-
-// Actualizar un evento por ID
-router.put('/:id', async (req, res) => {
-  const { id } = req.params;
-  const { fecha, tipo_dia, tipo_evento, hora, direccion_actividad, oferente, tipo_oferente, banda, cod_cofradia } = req.body;
-  try {
-    const updatedEvento = await knex('eventos')
-      .where('id', id)
-      .update({
-        fecha,
-        tipo_dia,
-        tipo_evento,
-        hora,
-        direccion_actividad,
-        oferente,
-        tipo_oferente,
-        banda,
-        cod_cofradia
-      });
-
-    if (updatedEvento === 0) {
-      return res.status(404).json({ error: 'Evento no encontrado' });
-    }
-
-    res.json({ message: 'Evento actualizado con éxito' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error actualizando el evento', details: err.message || err });
-  }
-});
-
-// Eliminar un evento por ID
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedEvento = await knex('eventos').where('id', id).del();
-    if (deletedEvento === 0) {
-      return res.status(404).json({ error: 'Evento no encontrado' });
-    }
-    res.json({ message: 'Evento eliminado' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error eliminando el evento', details: err.message || err });
-  }
-});
+router.delete('/:id', requireAdmin, asyncH(async (req, res) => {
+  const evento = await knex('eventos').where('id', req.params.id).first();
+  if (!evento) return notFound(res, 'Evento no encontrado');
+  await knex('eventos').where('id', evento.id).del();
+  await audit(req, 'eliminar', 'evento', evento.id, { fecha: isoLocal(evento.fecha), cod_cofradia: evento.cod_cofradia });
+  res.json({ message: 'Evento eliminado' });
+}));
 
 module.exports = router;

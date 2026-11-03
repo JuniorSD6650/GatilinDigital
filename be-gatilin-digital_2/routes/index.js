@@ -1,26 +1,29 @@
 const express = require('express');
-const usuariosRoutes = require('./usuarios');
-const bordaduriasRoutes = require('./bordadurias');  
-const participantesRoutes = require('./participantes');
-const organizacionRoutes = require('./organizacion');
-const cofradiaRoutes = require('./cofradia'); 
-const cofradesRoutes = require('./cofrades'); 
-const eventosRoutes = require('./eventos');
-const reportesRoutes = require('./reportes');
-const festivalRoutes = require('./festival');
-const estadisticasRoutes = require('./estadisticas');
+const knex = require('../lib/db');
 
 const router = express.Router();
 
-router.use('/usuarios', usuariosRoutes);
-router.use('/bordadurias', bordaduriasRoutes); 
-router.use('/participantes', participantesRoutes);
-router.use('/organizacion', organizacionRoutes);
-router.use('/cofradia', cofradiaRoutes);
-router.use('/cofrades', cofradesRoutes);
-router.use('/eventos', eventosRoutes);
-router.use('/reportes', reportesRoutes);
-router.use('/festival', festivalRoutes);
-router.use('/estadisticas', estadisticasRoutes);
+router.use('/usuarios', require('./usuarios'));
+router.use('/bordadurias', require('./bordadurias'));
+router.use('/participantes', require('./participantes'));
+router.use('/organizacion', require('./organizacion'));
+router.use('/cofradia', require('./cofradia'));
+router.use('/cofrades', require('./cofrades'));
+router.use('/eventos', require('./eventos'));
+router.use('/reportes', require('./reportes'));
+router.use('/festival', require('./festival'));
+router.use('/estadisticas', require('./estadisticas'));
+router.use('/auditoria', require('./auditoria'));
+router.use('/push', require('./push'));
+
+// Estado del servicio (monitoreo)
+router.get('/health', async (req, res) => {
+  try {
+    await knex.raw('select 1');
+    res.json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
 
 module.exports = router;

@@ -3,8 +3,31 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '@/services/api';
 import { getAuthHeaders } from '@/services/apis/api-auth';
-import { downloadTemplate, uploadExcel, getOrganizacionesList } from '@/services/apis/api-admin';
+import { downloadTemplate, getOrganizacionesList, exportExcel } from '@/services/apis/api-admin';
+import { getRankingCofradias } from '@/services/apis/api-normal';
+import { exportarTablaPDF } from '@/lib/pdf';
 import { useAlert } from '@/components/AlertContext';
+import FotosCuadrillaModal from '@/components/admin/FotosCuadrillaModal';
+import {
+  AdminModal, ModalCancel, ModalSave, ActionButton, RowActions,
+  PageToolbar, TemplateButton, UploadExcelButton, NewButton, ExportButton,
+  LoadingState, ErrorBanner, EmptyState, FilterBar, SearchField, FilterSelect, Pagination, usePagination,
+} from '@/components/admin/AdminUI';
+
+// Ranking de votos en PDF (para publicar o imprimir)
+const exportarRankingPDF = async () => {
+  const ranking = (await getRankingCofradias()).map((r, i) => ({ ...r, puesto: i + 1 }));
+  await exportarTablaPDF({
+    titulo: 'Ranking de cofradías por votos',
+    columnas: [
+      { titulo: 'Puesto', ancho: 10, valor: (r: (typeof ranking)[number]) => r.puesto },
+      { titulo: 'Cofradía', ancho: 60, valor: (r) => r.nickname_cofradia },
+      { titulo: 'Votos', ancho: 12, valor: (r) => r.votos },
+    ],
+    filas: ranking,
+    archivo: 'ranking-votos.pdf',
+  });
+};
 
 interface Cofradia {
   id: number;
@@ -29,12 +52,16 @@ export default function CofradiasAdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroDistrito, setFiltroDistrito] = useState('');
 
   // Estados para el modal de edición
   const [showModal, setShowModal] = useState(false);
   const [editingCofradia, setEditingCofradia] = useState<Cofradia | null>(null);
   const [formData, setFormData] = useState<Partial<Cofradia>>({});
   const [saving, setSaving] = useState(false);
+
+  // Modal de foto grupal de la cuadrilla
+  const [fotosDe, setFotosDe] = useState<Cofradia | null>(null);
 
   useEffect(() => {
     loadCofradias();
@@ -108,7 +135,7 @@ export default function CofradiasAdminPage() {
       }
       // Asegurar que tenga organizacion_id
       if (!dataToSend.organizacion_id) {
-        dataToSend.organizacion_id = 1;
+        dataToSend.organizacion_id = organizaciones[0]?.id ?? 1;
       }
 
       const isEditing = !!editingCofradia;
@@ -175,134 +202,90 @@ export default function CofradiasAdminPage() {
     downloadTemplate('cofradia', 'Plantilla_Cofradias.xlsx');
   };
 
-  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Distritos únicos ("La Esperanza, Amarilis" cuenta para ambos)
+  const distritosDe = (d?: string) => (d || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const distritos = [...new Set(cofradias.flatMap((c) => distritosDe(c.distrito)))].sort((a, b) => a.localeCompare(b));
+  const filteredCofradias = cofradias.filter((c) => {
+    const q = searchTerm.toLowerCase();
+    const matchSearch =
+      !q || [c.nickname_cofradia, c.nombre_cofradia, c.nombre_representante].some((v) => v && v.toLowerCase().includes(q));
+    const matchDistrito = !filtroDistrito || distritosDe(c.distrito).includes(filtroDistrito);
+    return matchSearch && matchDistrito;
+  });
+  const pag = usePagination(filteredCofradias, 20, searchTerm + filtroDistrito);
 
-    try {
-      await uploadExcel('cofradia', file);
-      showAlert('success', 'Datos cargados correctamente desde Excel');
-      loadCofradias();
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al cargar el archivo Excel');
-    }
-    e.target.value = '';
-  };
-  const filteredCofradias = cofradias.filter(c => 
-    c.nickname_cofradia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.nombre_cofradia.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-festivo-gold border-t-transparent"></div>
-          <p className="text-gray-400">Cargando cofradías...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Cargando cofradías..." />;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
-            Gestión de Cofradías
-          </h2>
-          <p className="text-gray-400">
-            {filteredCofradias.length} cofradía{filteredCofradias.length !== 1 ? 's' : ''} registrada{filteredCofradias.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleDownloadTemplate}
-            className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
-          >
-            📥 Plantilla
-          </button>
-          <label className="px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-medium cursor-pointer">
-            📤 Cargar Excel
-            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUploadExcel} />
-          </label>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 transition-colors text-sm font-bold"
-          >
-            ➕ Nueva Cofradía
-          </button>
-        </div>
-      </div>
+      <PageToolbar
+        title="Cofradías"
+        subtitle={`${cofradias.length} cofradía${cofradias.length !== 1 ? 's' : ''} registrada${cofradias.length !== 1 ? 's' : ''}`}
+      >
+        <TemplateButton onClick={handleDownloadTemplate} />
+        <UploadExcelButton endpoint="cofradia" onDone={loadCofradias} />
+        <ExportButton onClick={() => exportExcel('cofradia', 'Cofradias.xlsx')} />
+        <ExportButton label="Ranking (Excel)" onClick={() => exportExcel('cofradia/ranking', 'Ranking_Votos.xlsx')} />
+        <ExportButton label="Ranking (PDF)" onClick={exportarRankingPDF} />
+        <NewButton onClick={handleCreate}>Nueva Cofradía</NewButton>
+      </PageToolbar>
 
-      {/* Buscador */}
-      <div className="relative max-w-2xl">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          className="w-full pl-11 pr-4 py-3 bg-negrito-card border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-gold/50 focus:border-transparent transition-all"
-          placeholder="Buscar cofradía..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <FilterBar>
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre o representante..." />
+        <FilterSelect value={filtroDistrito} onChange={setFiltroDistrito} label="Distrito">
+          <option value="">Todos los distritos</option>
+          {distritos.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </FilterSelect>
+      </FilterBar>
 
-      {/* Error */}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 text-red-400">
-          {error}
-        </div>
-      )}
+      <ErrorBanner>{error}</ErrorBanner>
 
       {/* Tabla de Cofradías */}
-      <div className="bg-negrito-card border border-white/10 rounded-2xl overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-negrito-card">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-neutral-900 border-b border-white/10">
+            <thead className="border-b border-white/10 bg-white/[0.03]">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Cofradía
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Representante
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Distrito
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Color
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Acciones
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredCofradias.length > 0 ? (
-                filteredCofradias.map((cofradia) => (
-                  <tr key={cofradia.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4">
+              {pag.items.length > 0 ? (
+                pag.items.map((cofradia) => (
+                  <tr key={cofradia.id} className="transition-colors hover:bg-white/[0.03]">
+                    <td className="px-5 py-3.5">
                       <div>
                         <p className="font-medium text-white">{cofradia.nickname_cofradia}</p>
                         <p className="text-sm text-gray-400 line-clamp-1">{cofradia.nombre_cofradia}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3.5">
                       <div className="text-sm">
                         <p className="text-white">{cofradia.nombre_representante || '-'}</p>
                         <p className="text-gray-400">{cofradia.cel_representante || '-'}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
+                    <td className="px-5 py-3.5 text-sm text-gray-300">
                       {cofradia.distrito || 'Huánuco'}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-8 h-8 rounded-lg border border-white/10"
@@ -313,60 +296,48 @@ export default function CofradiasAdminPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(cofradia)}
-                          className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(cofradia.id, cofradia.nickname_cofradia)}
-                          className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                    <td className="px-5 py-3.5 text-right">
+                      <RowActions>
+                        <ActionButton kind="camera" onClick={() => setFotosDe(cofradia)}>Foto cuadrilla</ActionButton>
+                        <ActionButton kind="edit" onClick={() => handleEdit(cofradia)} />
+                        <ActionButton kind="delete" onClick={() => handleDelete(cofradia.id, cofradia.nickname_cofradia)} />
+                      </RowActions>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    No se encontraron cofradías
+                  <td colSpan={5}>
+                    <EmptyState
+                      title="No se encontraron cofradías"
+                      description={searchTerm || filtroDistrito ? 'Prueba con otra búsqueda o cambia los filtros.' : undefined}
+                    />
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        <Pagination {...pag} noun="cofradías" />
       </div>
 
-      {/* Modal de Edición/Creación */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            
-            {/* Header del Modal */}
-            <div className="sticky top-0 bg-negrito-card border-b border-white/10 p-6 z-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-display font-bold text-white">
-                  {editingCofradia ? 'Editar Cofradía' : 'Nueva Cofradía'}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+      {fotosDe && <FotosCuadrillaModal cofradia={fotosDe} onClose={() => setFotosDe(null)} />}
 
-            {/* Formulario */}
-            <div className="p-6 space-y-4">
+      {/* Modal de Edición/Creación */}
+      <AdminModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        locked={saving}
+        title={editingCofradia ? 'Editar Cofradía' : 'Nueva Cofradía'}
+        size="lg"
+        footer={
+          <>
+            <ModalCancel onClick={() => setShowModal(false)} disabled={saving} />
+            <ModalSave onClick={handleSave} loading={saving} />
+          </>
+        }
+      >
+            <div className="space-y-4">
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
@@ -475,23 +446,6 @@ export default function CofradiasAdminPage() {
                   />
                 </div>
 
-                {/* Organización */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">
-                    Organización *
-                  </label>
-                  <select
-                    value={formData.organizacion_id || 1}
-                    onChange={(e) => setFormData({ ...formData, organizacion_id: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 bg-neutral-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
-                  >
-                    {organizaciones.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
               </div>
 
@@ -560,28 +514,7 @@ export default function CofradiasAdminPage() {
               </div>
 
             </div>
-
-            {/* Footer del Modal */}
-            <div className="sticky bottom-0 bg-negrito-card border-t border-white/10 p-6 flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={saving}
-                className="px-6 py-2 bg-neutral-900 border border-white/10 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 bg-gradient-to-r from-festivo-gold to-yellow-600 text-negrito-black font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      </AdminModal>
 
     </div>
   );

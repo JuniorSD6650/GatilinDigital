@@ -161,7 +161,15 @@ export const getAuthToken = (): string | null => {
  * Verifica si el usuario está autenticado
  */
 export const isAuthenticated = (): boolean => {
-  return !!getAuthToken();
+  const token = getAuthToken();
+  if (!token) return false;
+  // Token vencido: se limpia la sesión para pedir login de nuevo
+  const exp = decodeJWT(token)?.exp;
+  if (typeof exp === 'number' && exp * 1000 < Date.now()) {
+    logout();
+    return false;
+  }
+  return true;
 };
 
 /**

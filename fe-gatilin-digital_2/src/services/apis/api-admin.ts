@@ -1,5 +1,25 @@
 import { API_URL } from '../api';
 import { getAuthHeaders, getAuthHeadersForFormData } from './api-auth';
+import { apiFetch, downloadFile, type Paginated } from '../http';
+
+export type { Paginated };
+
+/** Lanza un error con el mensaje del servidor (p. ej. qué campo es inválido) */
+const lanzarError = async (response: Response, porDefecto: string): Promise<never> => {
+  let msg = porDefecto;
+  try {
+    const data = await response.json();
+    msg = data.message || data.error || porDefecto;
+  } catch {
+    /* sin cuerpo JSON */
+  }
+  if (response.status === 401 && typeof window !== 'undefined' && /^\/admin/.test(window.location.pathname)) {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login?expirado=1';
+  }
+  throw new Error(msg);
+};
 
 // ============================================
 // USUARIOS LOCALIZADORES
@@ -71,7 +91,7 @@ export const getOrganizaciones = async (): Promise<Organizacion[]> => {
   const response = await fetch(`${API_URL}/organizacion`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener organizaciones');
+  if (!response.ok) await lanzarError(response, 'Error al obtener organizaciones');
   return await response.json();
 };
 
@@ -81,7 +101,7 @@ export const createOrganizacion = async (data: Partial<Organizacion>) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear organización');
+  if (!response.ok) await lanzarError(response, 'Error al crear organización');
   return await response.json();
 };
 
@@ -91,7 +111,7 @@ export const updateOrganizacion = async (id: number, data: Partial<Organizacion>
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al actualizar organización');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar organización');
   return await response.json();
 };
 
@@ -100,7 +120,7 @@ export const deleteOrganizacion = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar organización');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar organización');
   return await response.json();
 };
 
@@ -123,7 +143,7 @@ export const getBordadurias = async (): Promise<Bordaduria[]> => {
   const response = await fetch(`${API_URL}/bordadurias`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener bordadurías');
+  if (!response.ok) await lanzarError(response, 'Error al obtener bordadurías');
   return await response.json();
 };
 
@@ -133,7 +153,7 @@ export const createBordaduria = async (data: Partial<Bordaduria>) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear bordaduría');
+  if (!response.ok) await lanzarError(response, 'Error al crear bordaduría');
   return await response.json();
 };
 
@@ -143,7 +163,7 @@ export const updateBordaduria = async (id: number, data: Partial<Bordaduria>) =>
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al actualizar bordaduría');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar bordaduría');
   return await response.json();
 };
 
@@ -152,7 +172,7 @@ export const deleteBordaduria = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar bordaduría');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar bordaduría');
   return await response.json();
 };
 
@@ -176,7 +196,7 @@ export const getCofrades = async (): Promise<Cofrade[]> => {
   const response = await fetch(`${API_URL}/cofrades`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener cofrades');
+  if (!response.ok) await lanzarError(response, 'Error al obtener cofrades');
   return await response.json();
 };
 
@@ -186,7 +206,7 @@ export const createCofrade = async (formData: FormData) => {
     headers: getAuthHeadersForFormData(),
     body: formData,
   });
-  if (!response.ok) throw new Error('Error al crear cofrade');
+  if (!response.ok) await lanzarError(response, 'Error al crear cofrade');
   return await response.json();
 };
 
@@ -196,7 +216,7 @@ export const updateCofrade = async (id: number, formData: FormData) => {
     headers: getAuthHeadersForFormData(),
     body: formData,
   });
-  if (!response.ok) throw new Error('Error al actualizar cofrade');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar cofrade');
   return await response.json();
 };
 
@@ -205,7 +225,7 @@ export const deleteCofrade = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar cofrade');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar cofrade');
   return await response.json();
 };
 
@@ -231,7 +251,7 @@ export const getEventos = async (): Promise<Evento[]> => {
   const response = await fetch(`${API_URL}/eventos`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener eventos');
+  if (!response.ok) await lanzarError(response, 'Error al obtener eventos');
   return await response.json();
 };
 
@@ -241,7 +261,7 @@ export const createEvento = async (data: Partial<Evento>) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear evento');
+  if (!response.ok) await lanzarError(response, 'Error al crear evento');
   return await response.json();
 };
 
@@ -251,7 +271,7 @@ export const updateEvento = async (id: number, data: Partial<Evento>) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al actualizar evento');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar evento');
   return await response.json();
 };
 
@@ -260,7 +280,7 @@ export const deleteEvento = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar evento');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar evento');
   return await response.json();
 };
 
@@ -284,7 +304,7 @@ export const getReportes = async (): Promise<Reporte[]> => {
   const response = await fetch(`${API_URL}/reportes`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener reportes');
+  if (!response.ok) await lanzarError(response, 'Error al obtener reportes');
   return await response.json();
 };
 
@@ -294,7 +314,7 @@ export const updateReporte = async (id: number, formData: FormData) => {
     headers: getAuthHeadersForFormData(),
     body: formData,
   });
-  if (!response.ok) throw new Error('Error al actualizar reporte');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar reporte');
   return await response.json();
 };
 
@@ -303,7 +323,7 @@ export const deleteReporte = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar reporte');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar reporte');
   return await response.json();
 };
 
@@ -326,7 +346,7 @@ export const getParticipantes = async (): Promise<Participante[]> => {
   const response = await fetch(`${API_URL}/participantes`, {
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al obtener participantes');
+  if (!response.ok) await lanzarError(response, 'Error al obtener participantes');
   return await response.json();
 };
 
@@ -336,7 +356,7 @@ export const createParticipante = async (data: Partial<Participante>) => {
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear participante');
+  if (!response.ok) await lanzarError(response, 'Error al crear participante');
   return await response.json();
 };
 
@@ -353,7 +373,7 @@ export const updateParticipante = async (id: number, data: Partial<Participante>
     headers: getAuthHeadersForFormData(),
     body: formData,
   });
-  if (!response.ok) throw new Error('Error al actualizar participante');
+  if (!response.ok) await lanzarError(response, 'Error al actualizar participante');
   return await response.json();
 };
 
@@ -362,7 +382,7 @@ export const deleteParticipante = async (id: number) => {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
-  if (!response.ok) throw new Error('Error al eliminar participante');
+  if (!response.ok) await lanzarError(response, 'Error al eliminar participante');
   return await response.json();
 };
 
@@ -396,33 +416,106 @@ export const getCofradiasList = async (): Promise<{ id: number; nickname_cofradi
   return response.json();
 };
 
-export const downloadTemplate = (endpoint: string, filename: string) => {
-  const url = `${API_URL}/${endpoint}/template`;
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-export const uploadExcel = async (endpoint: string, file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_URL}/${endpoint}/bulk-upload`, {
-    method: 'POST',
-    headers: getAuthHeadersForFormData(),
-    body: formData,
+// Las plantillas requieren sesión de admin: se descargan con el token
+export const downloadTemplate = (endpoint: string, filename: string) =>
+  downloadFile(`/${endpoint}/template`, filename).catch((err) => {
+    alert(err.message || 'No se pudo descargar la plantilla');
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Error al cargar el archivo');
-  }
+/** Exporta a Excel un listado (con los filtros indicados) */
+export const exportExcel = (endpoint: string, filename: string, query?: Record<string, string | number | undefined>) =>
+  downloadFile(`/${endpoint}/export`, filename, query);
 
-  return await response.json();
+export interface FilaConError {
+  fila: number;
+  errores: string[];
+  datos?: Record<string, unknown>;
+}
+
+export interface BulkPreview {
+  dryRun: true;
+  total: number;
+  validos: number;
+  invalidos: number;
+  preview: Record<string, unknown>[];
+  errores: FilaConError[];
+}
+
+export interface BulkResultado {
+  message: string;
+  total: number;
+  insertados: number;
+  fallidos: number;
+  errores: FilaConError[];
+}
+
+const formDataArchivo = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return fd;
 };
+
+/** Paso 1: valida el Excel en el servidor SIN guardar nada */
+export const previewExcel = (endpoint: string, file: File) =>
+  apiFetch<BulkPreview>(`/${endpoint}/bulk-upload`, { method: 'POST', formData: formDataArchivo(file), query: { dryRun: 1 } });
+
+/** Paso 2: importa las filas válidas */
+export const uploadExcel = (endpoint: string, file: File) =>
+  apiFetch<BulkResultado>(`/${endpoint}/bulk-upload`, { method: 'POST', formData: formDataArchivo(file) });
+
+// ============================================
+// LISTADOS PAGINADOS EN SERVIDOR
+// ============================================
+
+export const getPaginado = <T,>(endpoint: string, query: Record<string, string | number | undefined>) =>
+  apiFetch<Paginated<T>>(`/${endpoint}`, { query });
+
+// ============================================
+// REPORTES: seguimiento
+// ============================================
+
+export const ESTADOS_REPORTE = ['pendiente', 'revisado', 'resuelto', 'descartado'] as const;
+export type EstadoReporte = (typeof ESTADOS_REPORTE)[number];
+
+export interface HistorialReporte {
+  id: number;
+  estado_anterior: string | null;
+  estado_nuevo: string;
+  nota: string | null;
+  username: string | null;
+  created_at: string;
+}
+
+export interface ReporteDetalle extends Reporte {
+  notas_internas?: string | null;
+  atendido_por_username?: string | null;
+  updated_at?: string | null;
+  historial: HistorialReporte[];
+}
+
+export const getReporteDetalle = (id: number) => apiFetch<ReporteDetalle>(`/reportes/${id}`);
+export const getResumenReportes = () => apiFetch<Record<EstadoReporte, number>>('/reportes/resumen');
+export const actualizarEstadoReporte = (id: number, data: { estado?: string; nota?: string; notas_internas?: string }) =>
+  apiFetch(`/reportes/${id}/estado`, { method: 'PATCH', body: data });
+
+// ============================================
+// AUDITORÍA
+// ============================================
+
+export interface RegistroAuditoria {
+  id: number;
+  usuario_id: number | null;
+  username: string | null;
+  accion: string;
+  entidad: string;
+  entidad_id: string | null;
+  detalle: unknown;
+  ip: string | null;
+  created_at: string;
+}
+
+export const getAuditoriaFiltros = () =>
+  apiFetch<{ entidades: string[]; acciones: string[]; usuarios: { id: number; username: string }[] }>('/auditoria/filtros');
 
 // ============================================
 // ESTADÍSTICAS DEL DASHBOARD

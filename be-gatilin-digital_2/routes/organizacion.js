@@ -1,12 +1,14 @@
 const express = require('express');
-const router = express.Router();
-const knexConfig = require('../knexfile');
-const knex = require('knex')(knexConfig);
 
-const fs = require('fs');
-const multer = require('multer');
-const ExcelJS = require('exceljs');
-const upload = multer({ dest: 'uploads/' });
+const knex = require('../lib/db');
+const { requireAdmin } = require('../middleware/auth');
+const { excelUpload } = require('../middleware/upload');
+const { z, validate, textoReq, textoOpc, url } = require('../middleware/validate');
+const { notFound, badRequest, asyncH } = require('../lib/http');
+const { audit, diff } = require('../lib/audit');
+const { sendTemplate, bulkImport } = require('../lib/excel');
+
+const router = express.Router();
 
 const ORGANIZACION_COLUMNS = [
   { header: 'Nombre', key: 'nombre', width: 30 },
@@ -14,204 +16,61 @@ const ORGANIZACION_COLUMNS = [
   { header: 'Link de Stream', key: 'streaming_link', width: 30 },
 ];
 
-// Descargar plantilla
-router.get('/template', async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Plantilla');
+const campos = { nombre: textoReq(255), descripcion: textoOpc(5000), streaming_link: url };
+const crearSchema = z.object(campos);
+const editarSchema = z.object(campos).partial();
 
-    worksheet.columns = ORGANIZACION_COLUMNS;
-    worksheet.getRow(1).font = { bold: true };
+// ---- Público (la configuración del sitio y el enlace de transmisión) ----
+router.get('/list', asyncH(async (req, res) => {
+  res.json(await knex('organizacion').select('id', 'nombre').orderBy('id', 'asc'));
+}));
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=Plantilla_Organizaciones.xlsx'
-    );
+router.get('/template', requireAdmin, asyncH(async (req, res) => {
+  await sendTemplate(res, { nombreHoja: 'Plantilla', filename: 'Plantilla_Organizaciones.xlsx', columns: ORGANIZACION_COLUMNS });
+}));
 
-    await workbook.xlsx.write(res);
-    res.end();
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: 'Error al generar la plantilla', details: error.message });
-  }
-});
+router.get('/', asyncH(async (req, res) => {
+  res.json(await knex('organizacion').select('*').orderBy('id', 'desc'));
+}));
 
-router.get('/list', async (req, res) => {
-  try {
-    const organizaciones = await knex('organizacion')
-      .select('id', 'nombre')
-      .orderBy('id', 'asc');
+router.get('/:id', asyncH(async (req, res) => {
+  const organizacion = await knex('organizacion').where('id', req.params.id).first();
+  if (!organizacion) return notFound(res, 'Organización no encontrada');
+  res.json(organizacion);
+}));
 
-    res.status(200).json(organizaciones);
-  } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo la lista de organizaciones',
-      details: err.message || err,
-    });
-  }
-});
+// ---- Admin ----
+router.post('/bulk-upload', requireAdmin, excelUpload, (req, res) =>
+  bulkImport(req, res, {
+    entidad: 'organizacion',
+    columns: ORGANIZACION_COLUMNS,
+    schema: crearSchema,
+    insert: (rec, db) => db('organizacion').insert(rec),
+  })
+);
 
+router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) => {
+  const [id] = await knex('organizacion').insert(req.body);
+  await audit(req, 'crear', 'organizacion', id, { nombre: req.body.nombre });
+  res.status(201).json({ message: 'Organización creada con éxito', id });
+}));
 
-// Obtener todas las organizaciones
-router.get('/', async (req, res) => {
-  try {
-    const organizaciones = await knex('organizacion')
-      .select('*')
-      .orderBy('id', 'desc');
+router.put('/:id', requireAdmin, validate(editarSchema), asyncH(async (req, res) => {
+  const actual = await knex('organizacion').where('id', req.params.id).first();
+  if (!actual) return notFound(res, 'Organización no encontrada');
+  const updates = Object.fromEntries(Object.entries(req.body).filter(([, v]) => v !== undefined));
+  if (Object.keys(updates).length === 0) return badRequest(res, 'No se enviaron datos para actualizar.');
+  await knex('organizacion').where('id', actual.id).update(updates);
+  await audit(req, 'editar', 'organizacion', actual.id, diff(actual, updates));
+  res.json({ message: 'Organización actualizada con éxito' });
+}));
 
-    res.json(organizaciones);
-  } catch (err) {
-    res.status(500).json({
-      error: 'Error obteniendo las organizaciones',
-      details: err.message || err
-    });
-  }
-});
-
-
-// Obtener una organización por ID
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const organizacion = await knex('organizacion').where('id', id).first();
-    if (!organizacion) {
-      return res.status(404).json({ error: 'Organización no encontrada' });
-    }
-    res.json(organizacion);
-  } catch (err) {
-    res.status(500).json({ error: 'Error obteniendo la organización', details: err.message || err });
-  }
-});
-
-// Cargar datos por excel
-router.post('/bulk-upload', upload.single('file'), async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(req.file.path);
-    const worksheet = workbook.getWorksheet(1);
-    const failedRecords = [];
-
-    for (let i = 2; i <= worksheet.rowCount; i++) {
-      const row = worksheet.getRow(i);
-      const record = {
-        nombre: row.getCell(1).value?.toString().trim() || null,
-        descripcion: row.getCell(2).value?.toString().trim() || null,
-        streaming_link: row.getCell(3).value?.toString().trim() || null,
-      };
-
-      if (!record.nombre) {
-        console.warn(`Fila ${i} ignorada: campo "nombre" está vacío.`);
-        continue;
-      }
-
-      try {
-        await knex('organizacion').insert(record);
-      } catch (error) {
-        console.error(`Error en fila ${i}:`, error.message);
-        failedRecords.push(record);
-      }
-    }
-
-    fs.unlink(req.file.path, (err) => {
-      if (err) {
-        console.error('Error eliminando archivo temporal:', err.message);
-      } else {
-        console.log('Archivo temporal eliminado:', req.file.path);
-      }
-    });
-
-    if (failedRecords.length > 0) {
-      const failedWorkbook = new ExcelJS.Workbook();
-      const failedWorksheet = failedWorkbook.addWorksheet('Errores');
-
-      failedWorksheet.columns = ORGANIZACION_COLUMNS;
-      failedWorksheet.getRow(1).font = { bold: true };
-
-      failedRecords.forEach((record) => {
-        failedWorksheet.addRow(record);
-      });
-
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename=Errores_Carga.xlsx'
-      );
-
-      await failedWorkbook.xlsx.write(res);
-      return res.end();
-    }
-
-    res.status(200).json({ message: 'Datos cargados correctamente.' });
-  } catch (err) {
-    console.error('Error al procesar el archivo:', err.message);
-
-    fs.unlink(req.file.path, (unlinkErr) => {
-      if (unlinkErr) {
-        console.error('Error eliminando archivo temporal:', unlinkErr.message);
-      }
-    });
-
-    res
-      .status(500)
-      .json({ error: 'Error al procesar el archivo', details: err.message });
-  }
-});
-
-// Crear una nueva organización
-router.post('/', async (req, res) => {
-  const { nombre, descripcion, streaming_link } = req.body;
-  try {
-    const result = await knex('organizacion').insert({
-      nombre, descripcion, streaming_link
-    });
-
-    const newOrganizacion = await knex('organizacion').where('id', result[0]).first();
-
-    res.status(201).json({ message: 'Organización creada con éxito', id: newOrganizacion.id });
-  } catch (err) {
-    res.status(500).json({ error: 'Error creando la organización', details: err.message || err });
-  }
-});
-
-// Actualizar una organización por ID
-router.put('/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nombre, descripcion, streaming_link } = req.body;
-  try {
-    const updatedOrganizacion = await knex('organizacion')
-      .where('id', id)
-      .update({ nombre, descripcion, streaming_link });
-
-    if (updatedOrganizacion === 0) {
-      return res.status(404).json({ error: 'Organización no encontrada' });
-    }
-
-    res.json({ message: 'Organización actualizada con éxito' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error actualizando la organización', details: err.message || err });
-  }
-});
-
-// Eliminar una organización por ID
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedOrganizacion = await knex('organizacion').where('id', id).del();
-    if (deletedOrganizacion === 0) {
-      return res.status(404).json({ error: 'Organización no encontrada' });
-    }
-    res.json({ message: 'Organización eliminada' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error eliminando la organización', details: err.message || err });
-  }
-});
+router.delete('/:id', requireAdmin, asyncH(async (req, res) => {
+  const actual = await knex('organizacion').where('id', req.params.id).first();
+  if (!actual) return notFound(res, 'Organización no encontrada');
+  await knex('organizacion').where('id', actual.id).del();
+  await audit(req, 'eliminar', 'organizacion', actual.id, { nombre: actual.nombre });
+  res.json({ message: 'Organización eliminada con éxito' });
+}));
 
 module.exports = router;

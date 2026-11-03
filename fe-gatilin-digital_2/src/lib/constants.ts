@@ -1,37 +1,77 @@
-export const NAV_LINKS = [
-  // Fila 1: Pañuelos Magenta
-  { 
-    name: 'Tradición', 
-    href: '/tradicion', 
-    imageSrc: '/icons/btn-negritos-magenta.svg' 
+export interface SectionLink {
+  name: string;
+  href: string;
+  /** Pañuelo ilustrado usado como ícono de la sección */
+  imageSrc: string;
+  /** Descripción corta para tarjetas y menú móvil */
+  description: string;
+  /** Color de acento de la sección (tomado del plumaje) */
+  accent: string;
+}
+
+export const SECTIONS: SectionLink[] = [
+  // Pañuelos magenta
+  {
+    name: 'Tradición',
+    href: '/tradicion',
+    imageSrc: '/icons/btn-negritos-magenta.svg',
+    description: 'De las haciendas coloniales al Patrimonio Cultural de la Nación.',
+    accent: '#ff1f8f',
   },
-  { 
-    name: 'Devoción', 
-    href: '/devocion', 
-    imageSrc: '/icons/btn-negritos-magenta.svg' 
+  {
+    name: 'Devoción',
+    href: '/devocion',
+    imageSrc: '/icons/btn-negritos-magenta.svg',
+    description: 'La adoración al Niño Jesús, corazón de la danza.',
+    accent: '#b45cf0',
   },
-  
-  // Fila 2: Pañuelos Azules
-  { 
-    name: 'Festival', 
-    href: '/festival', 
-    imageSrc: '/icons/btn-negritos-azul.svg' 
+  // Pañuelos azules
+  {
+    name: 'Festival',
+    href: '/festival',
+    imageSrc: '/icons/btn-negritos-azul.svg',
+    description: 'Cronograma oficial de presentaciones día por día.',
+    accent: '#4f86ff',
   },
-  { 
-    name: 'Sigueteo', 
-    href: '/sigueteo', 
-    imageSrc: '/icons/btn-negritos-azul.svg' 
+  {
+    name: 'Sigueteo',
+    href: '/sigueteo',
+    imageSrc: '/icons/btn-negritos-azul.svg',
+    description: 'Encuentra a tu cofradía y síguela en su recorrido.',
+    accent: '#12c7e6',
   },
-  
-  // Fila 3: Pañuelos Verdes
-  { 
-    name: 'Personajes', 
-    href: '/personajes', 
-    imageSrc: '/icons/btn-negritos-verde.svg' 
+  {
+    name: 'Mapa',
+    href: '/mapa',
+    imageSrc: '/icons/btn-negritos-azul.svg',
+    description: 'Mira en vivo dónde están las cofradías ahora mismo.',
+    accent: '#22d3a6',
   },
-  { 
-    name: 'Bordadurías', 
-    href: '/bordadurias', 
-    imageSrc: '/icons/btn-negritos-verde.svg' 
+  {
+    name: 'Agenda',
+    href: '/agenda',
+    imageSrc: '/icons/btn-negritos-azul.svg',
+    description: 'Todas las misas, visitas y recorridos, con recordatorios.',
+    accent: '#6d8bff',
+  },
+  // Pañuelos verdes
+  {
+    name: 'Personajes',
+    href: '/personajes',
+    imageSrc: '/icons/btn-negritos-verde.svg',
+    description: 'El Negrito, el Corochano, la Dama, el Turco y el Abanderado.',
+    accent: '#ff7a1a',
+  },
+  {
+    name: 'Bordadurías',
+    href: '/bordadurias',
+    imageSrc: '/icons/btn-negritos-verde.svg',
+    description: 'Los maestros del bordado que visten la tradición.',
+    accent: '#ef2b3c',
   },
 ];
+
+/** @deprecated Usa SECTIONS. Se mantiene por compatibilidad. */
+export const NAV_LINKS = SECTIONS;
+
+export const getSection = (href: string) => SECTIONS.find((s) => s.href === href);

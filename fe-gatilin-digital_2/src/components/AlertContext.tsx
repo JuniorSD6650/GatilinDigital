@@ -63,29 +63,42 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Toast Notifications */}
-      <div className="fixed top-20 right-4 z-[200] space-y-2 max-w-md">
+      <div className="fixed top-20 inset-x-4 sm:left-auto sm:right-4 z-[200] space-y-2 sm:max-w-sm" aria-live="polite" role="status">
         {alerts.map((alert) => (
           <div
             key={alert.id}
             className={`
-              p-4 rounded-lg shadow-2xl border backdrop-blur-sm animate-in slide-in-from-right-5 fade-in duration-300
-              ${alert.type === 'success' ? 'bg-green-500/90 border-green-400 text-white' : ''}
-              ${alert.type === 'error' ? 'bg-red-500/90 border-red-400 text-white' : ''}
-              ${alert.type === 'warning' ? 'bg-yellow-500/90 border-yellow-400 text-white' : ''}
-              ${alert.type === 'info' ? 'bg-blue-500/90 border-blue-400 text-white' : ''}
+              relative overflow-hidden pl-5 pr-3 py-3.5 rounded-xl shadow-2xl border border-white/10 bg-[#1a1224]/95 text-white backdrop-blur-md animate-in
             `}
           >
+            <span
+              aria-hidden
+              className={`absolute inset-y-0 left-0 w-1.5
+                ${alert.type === 'success' ? 'bg-green-500' : ''}
+                ${alert.type === 'error' ? 'bg-red-500' : ''}
+                ${alert.type === 'warning' ? 'bg-yellow-400' : ''}
+                ${alert.type === 'info' ? 'bg-blue-500' : ''}
+              `}
+            />
             <div className="flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">
+              <span
+                className={`grid place-items-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0
+                  ${alert.type === 'success' ? 'bg-green-500/20 text-green-400' : ''}
+                  ${alert.type === 'error' ? 'bg-red-500/20 text-red-400' : ''}
+                  ${alert.type === 'warning' ? 'bg-yellow-400/20 text-yellow-300' : ''}
+                  ${alert.type === 'info' ? 'bg-blue-500/20 text-blue-400' : ''}
+                `}
+              >
                 {alert.type === 'success' && '✓'}
                 {alert.type === 'error' && '✕'}
-                {alert.type === 'warning' && '⚠'}
-                {alert.type === 'info' && 'ℹ'}
+                {alert.type === 'warning' && '!'}
+                {alert.type === 'info' && 'i'}
               </span>
-              <p className="flex-1 text-sm font-medium">{alert.message}</p>
+              <p className="flex-1 text-sm leading-snug text-white/90">{alert.message}</p>
               <button
                 onClick={() => removeAlert(alert.id)}
-                className="text-current hover:opacity-70 transition-opacity"
+                aria-label="Cerrar notificación"
+                className="text-white/50 hover:text-white transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />

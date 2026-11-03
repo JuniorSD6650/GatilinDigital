@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getCurrentUser, getAuthHeaders } from '@/services/apis/api-auth';
 import { API_URL } from '@/services/api';
+import { apiFetch } from '@/services/http';
 import Image from 'next/image';
+import { IconChurch, IconPin, IconPhone } from '@/components/ui/Icons';
+import CompartirEnVivo from '@/components/localizador/CompartirEnVivo';
 
 export default function LocalizadorPage() {
   const [user, setUser] = useState<any>(null);
@@ -52,24 +55,12 @@ export default function LocalizadorPage() {
     setSuccess('');
 
     try {
-      const response = await fetch(`${API_URL}/cofradia/${user.cofradia_id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ubicacion_link: ubicacionLink,
-        }),
-      });
-
-      if (response.ok) {
-        setSuccess('¡Ubicación actualizada con éxito!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Error al actualizar ubicación');
-      }
+      // Endpoint propio del localizador: el servidor toma la cofradía del token
+      await apiFetch('/cofradia/mi-ubicacion', { method: 'PATCH', body: { ubicacion_link: ubicacionLink } });
+      setSuccess('¡Ubicación actualizada con éxito!');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Error de conexión con el servidor');
-      console.error(err);
+      setError((err as Error).message || 'Error al actualizar ubicación');
     } finally {
       setLoading(false);
     }
@@ -93,7 +84,7 @@ export default function LocalizadorPage() {
       {/* Información de la Cofradía */}
       <div className="bg-gradient-to-r from-festivo-cyan/10 to-blue-600/10 border border-festivo-cyan/20 rounded-2xl p-6">
         <div className="flex items-center gap-4">
-          <div className="text-4xl">⛪</div>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-festivo-cyan/15 text-festivo-cyan"><IconChurch className="w-6 h-6" /></span>
           <div>
             <p className="text-sm text-gray-400">Cofradía asignada</p>
             <p className="text-xl font-display font-bold text-festivo-cyan">
@@ -103,9 +94,16 @@ export default function LocalizadorPage() {
         </div>
       </div>
 
-      {/* Formulario de Actualización */}
+      {/* Opción 1: GPS en vivo */}
+      <CompartirEnVivo onActualizado={setUbicacionLink} />
+
+      {/* Opción 2: enlace de Google Maps */}
       <div className="bg-negrito-card border border-white/10 rounded-2xl p-6 space-y-6">
-        
+        <div>
+          <p className="text-lg font-bold text-white">Alternativa: pegar enlace de Google Maps</p>
+          <p className="mt-1 text-sm text-gray-400">Úsala si el GPS del navegador no funciona en tu celular.</p>
+        </div>
+
         <form onSubmit={handleUpdateLocation} className="space-y-6">
           
           {/* Mensajes de Éxito/Error */}
@@ -145,7 +143,7 @@ export default function LocalizadorPage() {
           {ubicacionLink && (
             <div className="bg-neutral-900/50 rounded-xl p-4 border border-white/5">
               <div className="flex items-start gap-3">
-                <div className="text-2xl">🗺️</div>
+                <IconPin className="w-5 h-5 mt-0.5 shrink-0 text-festivo-cyan" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-300 mb-1">Enlace actual:</p>
                   <a 
@@ -192,7 +190,7 @@ export default function LocalizadorPage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="text-2xl">📱</div>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-500/15 text-blue-400"><IconPhone className="w-5 h-5" /></span>
               <div className="text-left">
                 <p className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">
                   ¿Cómo compartir mi ubicación?

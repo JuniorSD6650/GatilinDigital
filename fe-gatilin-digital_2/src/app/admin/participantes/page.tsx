@@ -1,36 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getParticipantes, createParticipante, updateParticipante, deleteParticipante, type Participante } from '@/services/apis/api-admin';
+import { useState } from 'react';
+import { createParticipante, updateParticipante, deleteParticipante, exportExcel, getPaginado, type Participante } from '@/services/apis/api-admin';
 import { useAlert } from '@/components/AlertContext';
+import {
+  AdminModal, ModalCancel, ModalSave, ActionButton, RowActions,
+  PageToolbar, NewButton, ExportButton,
+  LoadingState, ErrorBanner, EmptyState, FilterBar, SearchField, FilterSelect, Pagination, useServerList,
+} from '@/components/admin/AdminUI';
+
+const fetchParticipantes = (q: Record<string, string | number | undefined>) => getPaginado<Participante>('participantes', q);
 
 export default function ParticipantesAdminPage() {
   const { showAlert, showConfirm } = useAlert();
-  const [participantes, setParticipantes] = useState<Participante[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('');
+
+  // Paginación, búsqueda y filtros en el servidor
+  const filtros = { q: searchTerm || undefined, estado: filterEstado || undefined };
+  const pag = useServerList<Participante>(fetchParticipantes, filtros);
+  const { error } = pag;
+  const loadData = pag.reload;
 
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Participante | null>(null);
   const [formData, setFormData] = useState<Partial<Participante>>({});
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const data = await getParticipantes();
-      setParticipantes(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -86,16 +81,6 @@ export default function ParticipantesAdminPage() {
     });
   };
 
-  const filteredData = participantes.filter(p => {
-    const matchSearch = 
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.dni && p.dni.includes(searchTerm)) ||
-      (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchEstado = !filterEstado || p.estado === filterEstado;
-
-    return matchSearch && matchEstado;
-  });
 
   const getEstadoBadge = (estado?: string) => {
     switch (estado) {
@@ -110,86 +95,47 @@ export default function ParticipantesAdminPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="text-4xl">⏳</div>
-          <p className="text-gray-400">Cargando participantes...</p>
-        </div>
-      </div>
-    );
-  }
+  if (pag.loading && pag.total === 0 && !searchTerm && !filterEstado && !error) return <LoadingState label="Cargando participantes..." />;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-display font-bold text-white">Participantes</h2>
-          <p className="text-gray-400">Gestiona los participantes registrados</p>
-        </div>
-        <button
-          onClick={handleCreate}
-          className="px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 transition-colors text-sm font-bold"
-        >
-          ➕ Nuevo Participante
-        </button>
-      </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-[250px]">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="text-gray-400">🔍</span>
-          </div>
-          <input
-            type="text"
-            className="w-full pl-11 pr-4 py-3 bg-negrito-card border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
-            placeholder="Buscar por nombre, DNI o email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <PageToolbar title="Participantes" subtitle="Gestiona los participantes registrados">
+        <ExportButton onClick={() => exportExcel('participantes', 'Participantes.xlsx', filtros)} />
+        <NewButton onClick={handleCreate}>Nuevo Participante</NewButton>
+      </PageToolbar>
 
-        <select
-          className="px-4 py-3 bg-negrito-card border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
-          value={filterEstado}
-          onChange={(e) => setFilterEstado(e.target.value)}
-        >
+      <FilterBar>
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por nombre, DNI o email..." />
+        <FilterSelect value={filterEstado} onChange={setFilterEstado} label="Estado">
           <option value="">Todos los estados</option>
           <option value="activo">Activo</option>
           <option value="inactivo">Inactivo</option>
           <option value="pendiente">Pendiente</option>
-        </select>
-      </div>
+        </FilterSelect>
+      </FilterBar>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 text-red-400">
-          {error}
-        </div>
-      )}
+      <ErrorBanner>{error}</ErrorBanner>
 
       {/* Tabla */}
-      <div className="bg-negrito-card border border-white/10 rounded-2xl overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-negrito-card">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-white/5">
+            <thead className="border-b border-white/10 bg-white/[0.03]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Nombre</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">DNI</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Email</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Teléfono</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Fecha Registro</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-400">Acciones</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Nombre</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">DNI</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Email</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Teléfono</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Estado</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Fecha Registro</th>
+                <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4">
+              {pag.items.map((item) => (
+                <tr key={item.id} className="transition-colors hover:bg-white/[0.03]">
+                  <td className="px-5 py-3.5">
                     <div>
                       <p className="text-sm font-medium text-white">{item.nombre}</p>
                       {item.comentario && (
@@ -197,50 +143,51 @@ export default function ParticipantesAdminPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">{item.dni || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.email || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.telefono || '-'}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-5 py-3.5 text-sm text-gray-300">{item.dni || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-400">{item.email || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-400">{item.telefono || '-'}</td>
+                  <td className="px-5 py-3.5">
                     <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${getEstadoBadge(item.estado)}`}>
                       {item.estado || 'Sin estado'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-400">
+                  <td className="px-5 py-3.5 text-sm text-gray-400">
                     {item.fecha_registro ? new Date(item.fecha_registro).toLocaleDateString('es-PE') : '-'}
                   </td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 text-sm"
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id, item.nombre)}
-                      className="px-3 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 text-sm"
-                    >
-                      🗑️ Eliminar
-                    </button>
+                  <td className="px-5 py-3.5">
+                    <RowActions>
+                      <ActionButton kind="edit" onClick={() => handleEdit(item)} />
+                      <ActionButton kind="delete" onClick={() => handleDelete(item.id, item.nombre)} />
+                    </RowActions>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filteredData.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              No se encontraron participantes
-            </div>
+          {!pag.loading && pag.total === 0 && (
+            <EmptyState
+              title="No se encontraron participantes"
+              description={searchTerm ? 'Prueba con otra búsqueda o cambia los filtros.' : undefined}
+            />
           )}
         </div>
+        <Pagination {...pag} noun="participantes" />
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-display font-bold text-white mb-6">
-              {editingItem ? 'Editar Participante' : 'Nuevo Participante'}
-            </h3>
+      <AdminModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        locked={saving}
+        title={editingItem ? 'Editar Participante' : 'Nuevo Participante'}
+        size="lg"
+        footer={
+          <>
+            <ModalCancel onClick={() => setShowModal(false)} disabled={saving} />
+            <ModalSave onClick={handleSave} loading={saving} />
+          </>
+        }
+      >
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -331,24 +278,7 @@ export default function ParticipantesAdminPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 font-bold disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AdminModal>
 
     </div>
   );

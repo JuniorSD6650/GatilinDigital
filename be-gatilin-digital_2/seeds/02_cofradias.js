@@ -1,3 +1,5 @@
+const { slugify } = require('../lib/slug');
+
 exports.seed = async function (knex) {
   await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
   await knex('cofradia').truncate();
@@ -350,6 +352,16 @@ exports.seed = async function (knex) {
       organizacion_id: 1
     }
   ];
+
+  // Slug único para la página pública de cada cofradía (/cofradia?slug=...)
+  const usados = new Set();
+  for (const c of cofradias) {
+    const base = slugify(c.nickname_cofradia);
+    let slug = base;
+    for (let n = 2; usados.has(slug); n++) slug = `${base}-${n}`;
+    usados.add(slug);
+    c.slug = slug;
+  }
 
   await knex('cofradia').insert(cofradias);
   console.log('✅ Cofradía sembrada.');

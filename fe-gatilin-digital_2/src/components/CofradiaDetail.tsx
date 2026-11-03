@@ -1,774 +1,562 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import React from 'react';
-import { type CofradiaDetalle, type Evento, getEventosByCofradiaId, votarCofradia, quitarVotoCofradia } from '@/services/apis/api-normal';
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  type CofradiaDetalle, type Evento, getEventosByCofradiaId, votarCofradia, quitarVotoCofradia, getEstadoVoto,
+  shareUrlCofradia, icsUrl, comoLlegarUrl,
+} from '@/services/apis/api-normal';
 import CofradesSection from './CofradesSection';
+import SeguirButton from './SeguirButton';
+import { useAlert } from './AlertContext';
+import Cintas from './decor/Cintas';
+import Campana from './decor/Campana';
+import {
+  IconArrowLeft, IconPin, IconShare, IconHeart, IconHeartFilled, IconChevronLeft, IconChevronRight,
+  IconMusic, IconCalendar, IconExternal, IconClock, Spinner,
+} from './ui/Icons';
+import { getDisplayColor, readableTextOn, withAlpha, accentOnDark } from '@/lib/color';
 
 // Función auxiliar para formatear tiempo relativo
 const formatRelativeTime = (dateString: string) => {
-    try {
-        if (!dateString) return "Fecha desconocida";
+  try {
+    if (!dateString) return 'Fecha desconocida';
 
-        const [datePart, timePart] = dateString.split(' ');
-        if (!datePart || !timePart) return dateString;
+    const [datePart, timePart] = dateString.split(' ');
+    if (!datePart || !timePart) return dateString;
 
-        const [day, month, year] = datePart.split('/').map(Number);
-        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+    const [day, month, year] = datePart.split('/').map(Number);
+    const [hours, minutes, seconds] = timePart.split(':').map(Number);
 
-        const updateDate = new Date(year, month - 1, day, hours, minutes, seconds);
-        const now = new Date();
+    const updateDate = new Date(year, month - 1, day, hours, minutes, seconds);
+    const diffMs = Date.now() - updateDate.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
 
-        const diffMs = now.getTime() - updateDate.getTime();
-        const diffHours = diffMs / (1000 * 60 * 60);
-
-        if (diffHours < 24 && diffHours >= 0) {
-            if (diffHours < 1) {
-                const diffMinutes = Math.floor(diffMs / (1000 * 60));
-                return `Hace ${diffMinutes} min`;
-            }
-            return `Hace ${Math.floor(diffHours)} horas`;
-        }
-
-        return dateString;
-    } catch (e) {
-        return dateString;
+    if (diffHours < 24 && diffHours >= 0) {
+      if (diffHours < 1) return `Hace ${Math.floor(diffMs / (1000 * 60))} min`;
+      const h = Math.floor(diffHours);
+      return `Hace ${h} ${h === 1 ? 'hora' : 'horas'}`;
     }
+    return dateString;
+  } catch {
+    return dateString;
+  }
 };
 
+// dd/mm/yyyy -> timestamp
+const fechaToTime = (f: string) => {
+  const [d, m, y] = f.split('/').map(Number);
+  return new Date(y, m - 1, d).getTime();
+};
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 interface CofradiaDetailProps {
-    detail: CofradiaDetalle;
-    onBack: () => void;
-    loading?: boolean;
+  detail: CofradiaDetalle;
+  onBack: () => void;
+  loading?: boolean;
+  backLabel?: string;
 }
 
-export default function CofradiaDetail({ detail, onBack, loading }: CofradiaDetailProps) {
-    const [eventos, setEventos] = useState<Evento[]>([]);
-    const [loadingEventos, setLoadingEventos] = useState(true);
-    const [votos, setVotos] = useState(detail.votos || 0);
-    const [votando, setVotando] = useState(false);
-    const [haVotadoEnEstaSesion, setHaVotadoEnEstaSesion] = useState(false);
-    const [baseUrl, setBaseUrl] = useState('');
-    const [diaSeleccionado, setDiaSeleccionado] = useState<string>('');
-    
-    // Scroll state para el selector de fechas
-    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-    const [showLeftArrow, setShowLeftArrow] = useState(false);
-    const [showRightArrow, setShowRightArrow] = useState(false);
+export default function CofradiaDetail({ detail, onBack, loading, backLabel = 'Volver a la lista' }: CofradiaDetailProps) {
+  const { showAlert } = useAlert();
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [loadingEventos, setLoadingEventos] = useState(true);
+  const [votos, setVotos] = useState(detail.votos || 0);
+  const [votando, setVotando] = useState(false);
+  const [haVotadoEnEstaSesion, setHaVotadoEnEstaSesion] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
+  const [diaSeleccionado, setDiaSeleccionado] = useState<string>('');
 
-    // Fix para color negro: usar #FF007F si es #000 o #000000
-    const displayColor = (detail.color === '#000' || detail.color === '#000000' || !detail.color) 
-        ? '#FF007F' 
-        : detail.color;
+  // Scroll del selector de fechas
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
 
-    // Obtener la URL base solo en el cliente
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setBaseUrl(window.location.origin);
-        }
-    }, []);
+  const color = getDisplayColor(detail.color);
+  const onColor = readableTextOn(color);
+  // Color de la cofradía ajustado para que el texto sea legible sobre el fondo oscuro
+  const ink = accentOnDark(color);
 
-    // Función para verificar scroll
-    const checkScroll = React.useCallback(() => {
-        const container = scrollContainerRef.current;
-        if (container) {
-            setShowLeftArrow(container.scrollLeft > 0);
-            setShowRightArrow(
-                container.scrollLeft < container.scrollWidth - container.clientWidth - 1
-            );
-        }
-    }, []);
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
 
-    // Función para hacer scroll
-    const scroll = React.useCallback((direction: 'left' | 'right') => {
-        const container = scrollContainerRef.current;
-        if (container) {
-            const scrollAmount = 200;
-            container.scrollBy({
-                left: direction === 'left' ? -scrollAmount : scrollAmount,
-                behavior: 'smooth'
-            });
-        }
-    }, []);
-
-    // Cargar eventos de la cofradía
-    useEffect(() => {
-        const fetchEventos = async () => {
-            setLoadingEventos(true);
-            try {
-                const data = await getEventosByCofradiaId(detail.id);
-                setEventos(data);
-                
-                // Seleccionar el día actual o el primero disponible
-                if (data.length > 0) {
-                    const fechasUnicas = [...new Set(data.map(e => e.fecha))].sort((a, b) => {
-                        const [dayA, monthA, yearA] = a.split('/').map(Number);
-                        const [dayB, monthB, yearB] = b.split('/').map(Number);
-                        const dateObjA = new Date(yearA, monthA - 1, dayA);
-                        const dateObjB = new Date(yearB, monthB - 1, dayB);
-                        return dateObjA.getTime() - dateObjB.getTime();
-                    });
-                    
-                    // Verificar si hoy es uno de los días con eventos
-                    const hoy = new Date();
-                    const diaHoy = String(hoy.getDate()).padStart(2, '0');
-                    const mesHoy = String(hoy.getMonth() + 1).padStart(2, '0');
-                    const añoHoy = hoy.getFullYear();
-                    const fechaHoyFormato = `${diaHoy}/${mesHoy}/${añoHoy}`;
-                    
-                    const tieneEventosHoy = fechasUnicas.includes(fechaHoyFormato);
-                    setDiaSeleccionado(tieneEventosHoy ? fechaHoyFormato : fechasUnicas[0]);
-                }
-            } catch (error) {
-                console.error('Error cargando eventos:', error);
-            } finally {
-                setLoadingEventos(false);
-            }
-        };
-
-        if (detail.id) {
-            fetchEventos();
-        }
-    }, [detail.id]);
-
-    // Listener para scroll
-    useEffect(() => {
-        checkScroll();
-        const container = scrollContainerRef.current;
-        if (container) {
-            container.addEventListener('scroll', checkScroll);
-            window.addEventListener('resize', checkScroll);
-            return () => {
-                container.removeEventListener('scroll', checkScroll);
-                window.removeEventListener('resize', checkScroll);
-            };
-        }
-    }, [checkScroll, eventos]);
-
-    // Función para votar
-    const handleVotar = async () => {
-        if (votando || haVotadoEnEstaSesion) return;
-        
-        setVotando(true);
-        try {
-            const response = await votarCofradia(detail.id);
-            setVotos(response.votos);
-            setHaVotadoEnEstaSesion(true);
-        } catch (error) {
-            console.error('Error al votar:', error);
-        } finally {
-            setVotando(false);
-        }
-    };
-
-    // Función para quitar voto
-    const handleQuitarVoto = async () => {
-        if (votando || !haVotadoEnEstaSesion) return;
-        
-        setVotando(true);
-        try {
-            const response = await quitarVotoCofradia(detail.id);
-            setVotos(response.votos);
-            setHaVotadoEnEstaSesion(false);
-        } catch (error) {
-            console.error('Error al quitar voto:', error);
-        } finally {
-            setVotando(false);
-        }
-    };
-
-    // Función para compartir en redes sociales
-    const handleCompartir = async () => {
-        // Verificar que tenemos la URL base
-        if (!baseUrl) return;
-        
-        const url = `${baseUrl}/sigueteo?cofradia=${detail.id}`;
-        const texto = `¡Vota por ${detail.nickname_cofradia}! 🎭✨\n\nApoya a mi cuadrilla favorita en la festividad.`;
-
-        // Usar Web Share API si está disponible (móviles)
-        if (typeof navigator !== 'undefined' && navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Vota por ${detail.nickname_cofradia}`,
-                    text: texto,
-                    url: url,
-                });
-            } catch (error) {
-                // Usuario canceló o error
-                if ((error as Error).name !== 'AbortError') {
-                    console.error('Error compartiendo:', error);
-                }
-            }
-        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-            // Fallback: copiar al portapapeles
-            try {
-                await navigator.clipboard.writeText(`${texto}\n\n${url}`);
-                alert('✅ Enlace copiado al portapapeles. ¡Compártelo con tus amigos!');
-            } catch (error) {
-                console.error('Error copiando al portapapeles:', error);
-                alert(`Comparte este enlace:\n${url}`);
-            }
-        }
-    };
-
-    /* // Función para generar y descargar el tríptico (2 páginas)
-    const handleDownloadTriptico = async () => {
-        if (!tripticoRef.current || generatingPDF) return;
-        
-        setGeneratingPDF(true);
-        
-        try {
-            // Hacer visible el tríptico temporalmente
-            tripticoRef.current.style.display = 'block';
-            
-            // Obtener ambas páginas del tríptico
-            const pages = tripticoRef.current.children;
-            
-            if (pages.length < 2) {
-                throw new Error('No se encontraron las 2 páginas del tríptico');
-            }
-            
-            // Crear PDF en formato horizontal (A4 landscape)
-            const pdf = new jsPDF({
-                orientation: 'landscape',
-                unit: 'mm',
-                format: 'a4'
-            });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            
-            // Capturar y agregar la primera cara (página 1)
-            const canvas1 = await html2canvas(pages[0] as HTMLElement, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#121212'
-            });
-            
-            const imgData1 = canvas1.toDataURL('image/png');
-            pdf.addImage(imgData1, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            
-            // Agregar nueva página para la segunda cara
-            pdf.addPage();
-            
-            // Capturar y agregar la segunda cara (página 2)
-            const canvas2 = await html2canvas(pages[1] as HTMLElement, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#121212'
-            });
-            
-            const imgData2 = canvas2.toDataURL('image/png');
-            pdf.addImage(imgData2, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            
-            // Ocultar nuevamente
-            tripticoRef.current.style.display = 'none';
-            
-            // Descargar el PDF
-            pdf.save(`triptico-${detail.nickname_cofradia.replace(/\s+/g, '-')}.pdf`);
-        } catch (error) {
-            console.error('Error generando PDF:', error);
-            alert('Hubo un error al generar el tríptico. Por favor intenta nuevamente.');
-        } finally {
-            setGeneratingPDF(false);
-        }
-    }; */
-
-    if (loading) {
-        return (
-            <div className="min-h-screen pb-20 animate-in fade-in zoom-in-95 duration-300 relative">
-                <div className="max-w-4xl mx-auto px-4 pt-6">
-                    <div className="h-96 bg-white/5 rounded-3xl animate-pulse border border-white/10" />
-                </div>
-            </div>
-        );
+  const checkScroll = React.useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      setShowLeftArrow(container.scrollLeft > 0);
+      setShowRightArrow(container.scrollLeft < container.scrollWidth - container.clientWidth - 1);
     }
+  }, []);
 
+  const scroll = React.useCallback((direction: 'left' | 'right') => {
+    scrollContainerRef.current?.scrollBy({ left: direction === 'left' ? -200 : 200, behavior: 'smooth' });
+  }, []);
+
+  // Fechas únicas ordenadas
+  const fechasUnicas = useMemo(
+    () => [...new Set(eventos.map((e) => e.fecha))].sort((a, b) => fechaToTime(a) - fechaToTime(b)),
+    [eventos]
+  );
+
+  // Cargar eventos de la cofradía
+  useEffect(() => {
+    const fetchEventos = async () => {
+      setLoadingEventos(true);
+      try {
+        const data = await getEventosByCofradiaId(detail.id);
+        setEventos(data);
+
+        // Seleccionar el día actual o el primero disponible
+        if (data.length > 0) {
+          const fechas = [...new Set(data.map((e) => e.fecha))].sort((a, b) => fechaToTime(a) - fechaToTime(b));
+          const hoy = new Date();
+          const fechaHoy = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+          setDiaSeleccionado(fechas.includes(fechaHoy) ? fechaHoy : fechas[0]);
+        }
+      } catch (error) {
+        console.error('Error cargando eventos:', error);
+      } finally {
+        setLoadingEventos(false);
+      }
+    };
+
+    if (detail.id) fetchEventos();
+  }, [detail.id]);
+
+  // Listener para scroll
+  useEffect(() => {
+    checkScroll();
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        container.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [checkScroll, eventos]);
+
+  // ¿Este dispositivo ya votó hoy? (lo decide el servidor, no la sesión del navegador)
+  useEffect(() => {
+    let activo = true;
+    getEstadoVoto(detail.id)
+      .then((r) => {
+        if (!activo) return;
+        setVotos(r.votos);
+        setHaVotadoEnEstaSesion(r.yaVotaste);
+      })
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
+  }, [detail.id]);
+
+  const handleVotar = async () => {
+    if (votando || haVotadoEnEstaSesion) return;
+    setVotando(true);
+    try {
+      const response = await votarCofradia(detail.id);
+      setVotos(response.votos);
+      setHaVotadoEnEstaSesion(true);
+      if (response.message && response.yaVotaste) showAlert('info', response.message);
+    } catch (error) {
+      showAlert('error', (error as Error).message || 'No se pudo registrar tu voto. Inténtalo nuevamente.');
+    } finally {
+      setVotando(false);
+    }
+  };
+
+  const handleQuitarVoto = async () => {
+    if (votando || !haVotadoEnEstaSesion) return;
+    setVotando(true);
+    try {
+      const response = await quitarVotoCofradia(detail.id);
+      setVotos(response.votos);
+      setHaVotadoEnEstaSesion(false);
+    } catch (error) {
+      showAlert('error', (error as Error).message || 'No se pudo quitar tu voto. Inténtalo nuevamente.');
+    } finally {
+      setVotando(false);
+    }
+  };
+
+  const handleCompartir = async () => {
+    if (!baseUrl) return;
+
+    // El enlace pasa por el backend para que WhatsApp muestre la vista previa de la cofradía
+    const url = shareUrlCofradia(detail);
+    const texto = `¡Vota por ${detail.nickname_cofradia}! 🎭✨\n\nApoya a mi cuadrilla favorita en la festividad.`;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: `Vota por ${detail.nickname_cofradia}`, text: texto, url });
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') console.error('Error compartiendo:', error);
+      }
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(`${texto}\n\n${url}`);
+        showAlert('success', 'Enlace copiado al portapapeles. ¡Compártelo con tus amigos!');
+      } catch (error) {
+        console.error('Error copiando al portapapeles:', error);
+        showAlert('info', `Comparte este enlace: ${url}`);
+      }
+    }
+  };
+
+  if (loading) {
     return (
-        <div className="min-h-screen pb-20 animate-in fade-in zoom-in-95 duration-300 relative">
-            <div className="max-w-4xl mx-auto px-4 pt-6">
-
-                {/* Botón de regreso */}
-                <button
-                    onClick={onBack}
-                    className="inline-flex items-center gap-2 mb-6 font-bold transition-opacity hover:opacity-80 bg-transparent border-none cursor-pointer"
-                    style={{ color: displayColor }}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                    </svg>
-                    Volver a la lista
-                </button>
-
-                <div className="bg-negrito-card border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
-
-                    {/* Header del Detalle - FIXED: ahora el texto no se corta */}
-                    <div
-                        className="min-h-[120px] relative flex items-end p-6"
-                        style={{ backgroundColor: displayColor }}
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-t from-negrito-card to-transparent opacity-90" />
-                        <div className="relative z-10 w-full">
-                            <h1
-                                className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-white drop-shadow-lg leading-tight break-words whitespace-normal"
-                                style={{
-                                    wordBreak: 'break-word',
-                                    whiteSpace: 'normal',
-                                    lineHeight: 1.15,
-                                    maxHeight: '3.5em',
-                                    overflow: 'visible',
-                                    textOverflow: 'unset',
-                                    display: 'block',
-                                }}
-                            >
-                                {detail.nickname_cofradia}
-                            </h1>
-                        </div>
-                    </div>
-
-                    <div className="p-6 md:p-8 space-y-10">
-
-                        {/* SECCIÓN: VOTACIÓN */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-center gap-3 md:gap-4">
-                                <div 
-                                    className="relative bg-gradient-to-br from-neutral-900 to-black p-4 rounded-2xl border-2 shadow-lg"
-                                    style={{ borderColor: displayColor }}
-                                >
-                                    <div className="absolute inset-0 rounded-2xl opacity-20 animate-pulse"
-                                        style={{ backgroundColor: displayColor }}
-                                    />
-                                    <div className="relative z-10 text-center">
-                                        <div className="flex items-center justify-center gap-1.5">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" style={{ color: displayColor }}>
-                                                <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.977a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z" />
-                                            </svg>
-                                            <span className="text-3xl font-black" style={{ color: displayColor }}>
-                                                {votos}
-                                            </span>
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mt-0.5">
-                                            {votos === 1 ? 'Voto' : 'Votos'}
-                                        </p>
-                                    </div>
-                                </div>
-                            
-                            {!haVotadoEnEstaSesion ? (
-                                <button
-                                    onClick={handleVotar}
-                                    disabled={votando}
-                                    className="group relative px-5 py-2.5 rounded-xl font-bold text-white text-base transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                                    style={{ 
-                                        backgroundColor: displayColor,
-                                        boxShadow: `0 4px 12px ${displayColor}40`
-                                    }}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        {votando ? (
-                                            <>
-                                                <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                Votando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 group-hover:scale-110 transition-transform">
-                                                    <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.977a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z" />
-                                                </svg>
-                                                ¡Votar!
-                                            </>
-                                        )}
-                                    </span>
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={handleQuitarVoto}
-                                    disabled={votando}
-                                    className="group relative px-5 py-2.5 rounded-xl font-bold text-base transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg border-2"
-                                    style={{ 
-                                        backgroundColor: 'transparent',
-                                        borderColor: displayColor,
-                                        color: displayColor
-                                    }}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        {votando ? (
-                                            <>
-                                                <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                Quitando...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 group-hover:scale-110 transition-transform">
-                                                    <path d="M15.73 5.25h1.035A7.465 7.465 0 0118 9.375a7.465 7.465 0 01-1.235 4.125h-.148c-.806 0-1.534.446-2.031 1.08a9.04 9.04 0 01-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 00-.322 1.672V21a.75.75 0 01-.75.75 2.25 2.25 0 01-2.25-2.25c0-1.152.26-2.243.723-3.218C7.74 15.724 7.366 15 6.748 15H3.622c-1.026 0-1.945-.694-2.054-1.715A12.134 12.134 0 011.5 12c0-2.848.992-5.464 2.649-7.521.388-.482.987-.729 1.605-.729H9.77a4.5 4.5 0 011.423.23l3.114 1.04a4.5 4.5 0 001.423.23zM21.669 13.773c.536-1.362.831-2.845.831-4.398 0-1.22-.182-2.398-.52-3.507-.26-.85-1.084-1.368-1.973-1.368H19.1c-.445 0-.72.498-.523.898.591 1.2.924 2.55.924 3.977a8.959 8.959 0 01-1.302 4.666c-.245.403.028.959.5.959h1.053c.832 0 1.612-.453 1.918-1.227z" />
-                                                </svg>
-                                                Quitar Voto
-                                            </>
-                                        )}
-                                    </span>
-                                </button>
-                            )}
-                            </div>
-
-                            {/* Botón de Compartir */}
-                            <button
-                                onClick={handleCompartir}
-                                className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 border-2 border-white/20 hover:border-white/40 transition-all hover:scale-105 active:scale-95 shadow-lg"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                    <path fillRule="evenodd" d="M15.75 4.5a3 3 0 11.825 2.066l-8.421 4.679a3.002 3.002 0 010 1.51l8.421 4.679a3 3 0 11-.729 1.31l-8.421-4.678a3 3 0 110-4.132l8.421-4.679a3 3 0 01-.096-.755z" clipRule="evenodd" />
-                                </svg>
-                                <span>Compartir y Pedir Votos</span>
-                            </button>
-                        </div>
-
-                        {/* 1. SECCIÓN: UBICACIÓN */}
-                        <div className="bg-neutral-900 p-6 rounded-2xl border border-white/5 text-center space-y-4">
-                            <p className="text-gray-400 text-sm uppercase tracking-widest">¿Dónde están ahora?</p>
-
-                            <a
-                                href={detail.ubicacion_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full py-3 md:py-4 px-4 text-white font-bold rounded-xl shadow-lg transform transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 md:gap-3 text-sm md:text-lg"
-                                style={{
-                                    backgroundColor: displayColor,
-                                    boxShadow: `0 10px 20px -5px ${displayColor}60`
-                                }}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0 animate-bounce">
-                                    <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                                </svg>
-                                <span className="leading-tight">Ver Ubicación en Google Maps</span>
-                            </a>
-
-                            <p className="text-xs text-gray-500 font-mono">
-                                Actualizado: <span className="font-bold" style={{ color: displayColor }}>{formatRelativeTime(detail.ubicacion_link_actualizado)}</span>
-                            </p>
-                        </div>
-
-                        {/* 2. SECCIÓN: HISTORIA */}
-                        {detail.descripcion && (
-                            <div className="relative py-10 px-8 bg-white/5 rounded-2xl border border-white/5 overflow-hidden group">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
-                                <div
-                                    className="absolute top-2 left-4 text-7xl font-serif opacity-20 select-none"
-                                    style={{ color: displayColor }}
-                                >
-                                    "
-                                </div>
-
-                                <div className="relative z-10 text-center">
-                                    <h3
-                                        className="text-xl font-display font-bold uppercase tracking-widest mb-6"
-                                        style={{ color: displayColor }}
-                                    >
-                                        Nuestra Historia
-                                    </h3>
-                                    <p className="text-gray-300 font-serif italic text-lg leading-loose whitespace-pre-line">
-                                        {detail.descripcion}
-                                    </p>
-                                </div>
-
-                                <div
-                                    className="absolute bottom-[-20px] right-4 text-7xl font-serif opacity-20 select-none rotate-180"
-                                    style={{ color: displayColor }}
-                                >
-                                    "
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 3. SECCIÓN: DATOS GENERALES */}
-                        <div className="space-y-4">
-                            <h3
-                                className="text-lg font-bold text-white border-b pb-2"
-                                style={{ color: displayColor, borderColor: `${displayColor}40` }}
-                            >
-                                Información General
-                            </h3>
-
-                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 text-gray-300">
-                                {/* Nombre completo */}
-                                {detail.nombre_cofradia && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Nombre completo</span>
-                                        <span className="font-medium">{detail.nombre_cofradia}</span>
-                                    </li>
-                                )}
-
-                                {/* Fundación */}
-                                {detail.fecha_fundacion && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Fundación</span>
-                                        <span className="font-medium">{detail.fecha_fundacion}</span>
-                                    </li>
-                                )}
-
-                                {/* Distrito */}
-                                {detail.distrito && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Distrito</span>
-                                        <span className="font-medium">{detail.distrito}</span>
-                                    </li>
-                                )}
-
-                                {/* Sede Local */}
-                                {detail.sede_local && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Sede Local</span>
-                                        <span className="font-medium">{detail.sede_local}</span>
-                                    </li>
-                                )}
-
-                                {/* Representante */}
-                                {detail.nombre_representante && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Representante</span>
-                                        <span className="font-medium">{detail.nombre_representante}</span>
-                                    </li>
-                                )}
-
-                                {/* DNI Representante */}
-                                {detail.dni_representante && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">DNI Representante</span>
-                                        <span className="font-medium">{detail.dni_representante}</span>
-                                    </li>
-                                )}
-
-                                {/* Celular Representante */}
-                                {detail.cel_representante && (
-                                    <li className="flex flex-col">
-                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Celular</span>
-                                        <span className="font-medium">{detail.cel_representante}</span>
-                                    </li>
-                                )}
-                            </ul>
-                        </div>
-
-                        {/* 4. SECCIÓN: CRONOGRAMA DE EVENTOS */}
-                        {eventos.length > 0 && (
-                            <div className="space-y-4">
-                                <h3
-                                    className="text-xl md:text-2xl font-display font-bold uppercase tracking-wider text-center block mx-auto pb-1 border-b-2 w-fit"
-                                    style={{ color: displayColor, borderColor: displayColor }}
-                                >
-                                    🎉 Cronograma
-                                </h3>
-
-                                {loadingEventos ? (
-                                    <div className="space-y-2">
-                                        {[1, 2].map(i => (
-                                            <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {/* Selector de días */}
-                                        <div className="relative group">
-                                            {/* Botón izquierda - solo visible en pantallas grandes */}
-                                            {showLeftArrow && (
-                                                <button
-                                                    onClick={() => scroll('left')}
-                                                    className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                                    style={{ backdropFilter: 'blur(4px)' }}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                                    </svg>
-                                                </button>
-                                            )}
-
-                                            {/* Contenedor de fechas */}
-                                            <div 
-                                                ref={scrollContainerRef}
-                                                className="overflow-x-auto pb-2 scrollbar-hide"
-                                                style={{ 
-                                                    scrollbarWidth: 'none',
-                                                    msOverflowStyle: 'none'
-                                                }}
-                                            >
-                                                <div className="flex gap-2 px-12 md:px-0">
-                                                    {[...new Set(eventos.map(e => e.fecha))].sort((a, b) => {
-                                                        const [dayA, monthA, yearA] = a.split('/').map(Number);
-                                                        const [dayB, monthB, yearB] = b.split('/').map(Number);
-                                                        const dateObjA = new Date(yearA, monthA - 1, dayA);
-                                                        const dateObjB = new Date(yearB, monthB - 1, dayB);
-                                                        return dateObjA.getTime() - dateObjB.getTime();
-                                                    }).map(fecha => {
-                                                        const primerEvento = eventos.find(e => e.fecha === fecha);
-                                                        const [dia, mes] = fecha.split('/');
-                                                        const esSeleccionado = fecha === diaSeleccionado;
-                                                        
-                                                        return (
-                                                            <button
-                                                                key={fecha}
-                                                                onClick={() => setDiaSeleccionado(fecha)}
-                                                                className={`flex-shrink-0 w-[100px] h-[90px] rounded-xl font-bold transition-all ${
-                                                                    esSeleccionado 
-                                                                        ? 'shadow-lg scale-105' 
-                                                                        : 'bg-white/5 hover:bg-white/10 border border-white/10'
-                                                                }`}
-                                                                style={esSeleccionado ? {
-                                                                    backgroundColor: displayColor,
-                                                                    color: 'white'
-                                                                } : {
-                                                                    color: displayColor
-                                                                }}
-                                                            >
-                                                                <div className="text-center flex flex-col items-center justify-center h-full px-2">
-                                                                    <div className="text-2xl font-black leading-none">{dia}</div>
-                                                                    <div className="text-xs opacity-70 mt-0.5">{mes}</div>
-                                                                    <div className="text-[10px] mt-1 opacity-90 truncate w-full">
-                                                                        {primerEvento?.tipo_dia}
-                                                                    </div>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-
-                                            {/* Botón derecha - solo visible en pantallas grandes */}
-                                            {showRightArrow && (
-                                                <button
-                                                    onClick={() => scroll('right')}
-                                                    className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                                    style={{ backdropFilter: 'blur(4px)' }}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-white">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Eventos del día seleccionado */}
-                                        {(() => {
-                                            const eventosDelDiaSeleccionado = eventos.filter(e => e.fecha === diaSeleccionado);
-                                            
-                                            if (eventosDelDiaSeleccionado.length === 0) return null;
-
-                                            return (
-                                                <div className="space-y-3">
-                                                    {[diaSeleccionado].map(fecha => {
-                                                        const eventosDelDia = eventosDelDiaSeleccionado;
-                                                        
-                                                        return (
-                                            <div key={fecha} className="relative">
-                                                {/* Eventos del día - Grid de 1 columna */}
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {eventosDelDia
-                                                        .sort((a, b) => a.hora.localeCompare(b.hora))
-                                                        .map((evento) => (
-                                                        <div
-                                                            key={evento.id}
-                                                            className="relative bg-gradient-to-br from-negrito-card to-neutral-900/50 border border-white/10 rounded-lg p-2 md:p-3 hover:border-white/20 transition-all"
-                                                        >
-                                                            {/* Contenido compacto */}
-                                                            <div className="space-y-0.5">
-                                                                {/* Hora y Título en la misma línea */}
-                                                                <div className="flex items-start gap-2">
-                                                                    <div 
-                                                                        className="px-1.5 py-0.5 rounded font-bold text-xs flex-shrink-0"
-                                                                        style={{ 
-                                                                            backgroundColor: `${displayColor}20`,
-                                                                            color: displayColor
-                                                                        }}
-                                                                    >
-                                                                        {evento.hora.substring(0, 5)}
-                                                                    </div>
-                                                                    <div className="font-bold text-white text-xs md:text-sm break-words whitespace-normal leading-tight flex-1" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.05rem)' }}>
-                                                                        {evento.tipo_evento}
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {/* Dirección y Oferente - en la misma línea en pantallas grandes */}
-                                                                <div className="flex flex-col md:flex-row md:items-center md:gap-3 md:flex-wrap pl-0.5">
-                                                                    {/* Dirección */}
-                                                                    {evento.direccion_actividad && (
-                                                                        <div className="flex items-start gap-1 break-words whitespace-normal leading-tight">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: displayColor }}>
-                                                                                <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                                                                            </svg>
-                                                                            <span className="text-[11px] md:text-xs text-gray-300 break-words whitespace-normal leading-tight">{evento.direccion_actividad}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    
-                                                                    {/* Oferente */}
-                                                                    {(evento.tipo_oferente || evento.oferente) && (
-                                                                        <div className="text-[11px] md:text-xs text-gray-400 break-words whitespace-normal leading-tight">
-                                                                            {evento.tipo_oferente && (
-                                                                                <span 
-                                                                                    className="text-[10px] px-1 py-0.5 rounded font-bold uppercase mr-1"
-                                                                                    style={{ 
-                                                                                        backgroundColor: `${displayColor}15`,
-                                                                                        color: displayColor
-                                                                                    }}
-                                                                                >
-                                                                                    {evento.tipo_oferente}
-                                                                                </span>
-                                                                            )}
-                                                                            {evento.oferente && (
-                                                                                <span>{evento.oferente}</span>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                
-                                                                {/* Banda */}
-                                                                {evento.banda && evento.banda !== 'Ninguna' && (
-                                                                    <div className="flex items-center gap-1 break-words whitespace-normal leading-tight pl-0.5">
-                                                                        <span className="text-xs">🎵</span>
-                                                                        <span className="text-[11px] md:text-xs text-gray-400 break-words whitespace-normal leading-tight">{evento.banda}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                                    })}
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-                                )}
-
-                                {/* Call to Action - compacto */}
-                                <div 
-                                    className="text-center p-4 md:p-6 rounded-xl border"
-                                    style={{ 
-                                        backgroundColor: `${displayColor}10`,
-                                        borderColor: `${displayColor}50`
-                                    }}
-                                >
-                                    <p className="text-base md:text-lg font-bold mb-1" style={{ color: displayColor }}>
-                                        ¡Únete a nosotros! 🎭
-                                    </p>
-                                    <p className="text-xs md:text-sm text-gray-300">
-                                        Vive la tradición en cada evento
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 5. SECCIÓN: COFRADES/INTEGRANTES */}
-                        <CofradesSection cofradiaId={detail.id} cofradiaColor={displayColor} />
-
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div className="container-fest pt-8">
+        <div className="h-72 animate-pulse rounded-3xl border border-white/5 bg-white/[0.04]" />
+      </div>
     );
+  }
+
+  const eventosDelDia = eventos
+    .filter((e) => e.fecha === diaSeleccionado)
+    .sort((a, b) => a.hora.localeCompare(b.hora));
+
+  // Información general (no se muestra el DNI del representante por protección de datos personales)
+  const info = [
+    { label: 'Nombre completo', value: detail.nombre_cofradia },
+    { label: 'Fundación', value: detail.fecha_fundacion },
+    { label: 'Distrito', value: detail.distrito },
+    { label: 'Sede local', value: detail.sede_local },
+    { label: 'Representante', value: detail.nombre_representante },
+    { label: 'Celular', value: detail.cel_representante, href: detail.cel_representante ? `tel:${detail.cel_representante}` : undefined },
+  ].filter((i) => i.value);
+
+  return (
+    <div
+      className="container-fest pt-8 animate-in"
+      style={{ '--accent': color, '--on-accent': onColor } as React.CSSProperties}
+    >
+      {/* Volver */}
+      <button
+        type="button"
+        onClick={onBack}
+        className="group mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-white/75 transition-colors hover:border-white/25 hover:text-white"
+      >
+        <IconArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+        {backLabel}
+      </button>
+
+      {/* ===== HÉROE DE LA COFRADÍA ===== */}
+      <section className="relative isolate overflow-hidden rounded-3xl border border-white/10">
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-20"
+          style={{ background: `linear-gradient(135deg, ${withAlpha(color, 0.55)} 0%, ${withAlpha(color, 0.18)} 45%, #120c1a 100%)` }}
+        />
+        <div aria-hidden className="bordado absolute inset-0 -z-10 opacity-[0.08]" />
+        <Cintas className="pointer-events-none absolute -top-1 right-4 h-44 w-20 sm:right-10 sm:h-56 sm:w-28" count={7} />
+
+        <div className="relative px-6 pb-10 pt-10 sm:px-10 sm:pt-14">
+          <p className="eyebrow text-white/80">
+            <Campana className="w-3.5 h-4" ring="none" />
+            Cofradía
+          </p>
+          <h1 className="mt-3 max-w-3xl pr-20 font-display text-3xl font-semibold leading-[1.05] text-white [overflow-wrap:anywhere] sm:pr-32 sm:text-5xl">
+            {detail.nickname_cofradia}
+          </h1>
+          {(detail.distrito || detail.fecha_fundacion) && (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/80">
+              {detail.distrito && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1 backdrop-blur">
+                  <IconPin className="w-3.5 h-3.5" /> {detail.distrito}
+                </span>
+              )}
+              {detail.fecha_fundacion && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1 backdrop-blur">
+                  <IconCalendar className="w-3.5 h-3.5" /> Fundada: {detail.fecha_fundacion}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Ubicación en vivo */}
+          <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/35 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">¿Dónde están ahora?</p>
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/75">
+                <IconClock className="w-4 h-4" />
+                Actualizado: <span className="font-semibold text-white">{formatRelativeTime(detail.ubicacion_link_actualizado)}</span>
+                {detail.compartiendo && (
+                  <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> EN VIVO
+                  </span>
+                )}
+              </p>
+            </div>
+            {detail.ubicacion_link ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Link
+                  href={`/mapa?cofradia=${encodeURIComponent(detail.slug || String(detail.id))}`}
+                  className="btn px-6 py-3.5 text-sm sm:text-base hover:-translate-y-0.5"
+                  style={{ backgroundColor: color, color: onColor, boxShadow: `0 12px 28px -10px ${withAlpha(color, 0.8)}` }}
+                >
+                  <IconPin className="w-5 h-5" />
+                  Ver en el mapa
+                </Link>
+                <a
+                  href={detail.ubicacion_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost px-5 py-3.5 text-sm"
+                >
+                  Google Maps
+                  <IconExternal className="w-4 h-4 opacity-70" />
+                </a>
+              </div>
+            ) : (
+              <span className="text-sm text-white/55">Ubicación aún no disponible</span>
+            )}
+          </div>
+          <div className="mt-3">
+            <SeguirButton cofradiaId={detail.id} nombre={detail.nickname_cofradia} color={color} />
+          </div>
+        </div>
+        <div className="plumaje-band" />
+      </section>
+
+      {/* ===== CONTENIDO ===== */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
+        {/* Columna lateral (primero en móvil) */}
+        <aside className="space-y-6 lg:order-2 lg:sticky lg:top-24 lg:self-start">
+          {/* Votación */}
+          <div className="card-fest overflow-hidden p-6 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">Apoya a tu cuadrilla</p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <IconHeartFilled className="w-7 h-7" style={{ color: ink }} />
+              <span className="font-display text-5xl font-semibold tabular-nums text-white">{votos}</span>
+            </div>
+            <p className="text-sm text-white/50">{votos === 1 ? 'voto' : 'votos'}</p>
+
+            {!haVotadoEnEstaSesion ? (
+              <button
+                type="button"
+                onClick={handleVotar}
+                disabled={votando}
+                className="btn mt-5 w-full py-3.5 text-base hover:-translate-y-0.5"
+                style={{ backgroundColor: color, color: onColor, boxShadow: `0 10px 24px -10px ${withAlpha(color, 0.8)}` }}
+              >
+                {votando ? <><Spinner className="w-4 h-4" /> Votando...</> : <><IconHeart className="w-5 h-5" /> ¡Votar!</>}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleQuitarVoto}
+                disabled={votando}
+                className="btn mt-5 w-full border-2 bg-transparent py-3 text-base"
+                style={{ borderColor: ink, color: ink }}
+              >
+                {votando ? <><Spinner className="w-4 h-4" /> Quitando...</> : 'Quitar voto'}
+              </button>
+            )}
+
+            <button type="button" onClick={handleCompartir} className="btn btn-ghost mt-3 w-full py-3 text-sm">
+              <IconShare className="w-4 h-4" />
+              Compartir y pedir votos
+            </button>
+          </div>
+
+          {/* Información general */}
+          {info.length > 0 && (
+            <div className="card-fest p-6">
+              <h2 className="font-display text-lg font-semibold text-white">Información general</h2>
+              <dl className="mt-4 divide-y divide-white/5">
+                {info.map((i) => (
+                  <div key={i.label} className="flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-white/45">{i.label}</dt>
+                    <dd className="text-sm text-white/90 [overflow-wrap:anywhere]">
+                      {i.href ? (
+                        <a href={i.href} className="hover:underline" style={{ color: ink }}>{i.value}</a>
+                      ) : (
+                        i.value
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </aside>
+
+        {/* Columna principal */}
+        <div className="min-w-0 space-y-6 lg:order-1">
+          {/* Historia */}
+          {detail.descripcion && (
+            <section className="card-fest relative overflow-hidden p-6 sm:p-8">
+              <span aria-hidden className="absolute left-4 top-0 font-display text-8xl leading-none opacity-20" style={{ color: ink }}>“</span>
+              <h2 className="eyebrow relative" style={{ color: ink }}>Nuestra historia</h2>
+              <p className="relative mt-4 whitespace-pre-line font-display text-lg italic leading-relaxed text-white/85">
+                {detail.descripcion}
+              </p>
+            </section>
+          )}
+
+          {/* Cronograma */}
+          {(loadingEventos || eventos.length > 0) && (
+            <section className="card-fest p-5 sm:p-7">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-2xl font-semibold text-white">Cronograma</h2>
+                {!loadingEventos && (
+                  <span className="text-xs text-white/45">{fechasUnicas.length} {fechasUnicas.length === 1 ? 'día' : 'días'}</span>
+                )}
+              </div>
+
+              {loadingEventos ? (
+                <div className="mt-5 space-y-2">
+                  {[1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-white/5" />)}
+                </div>
+              ) : (
+                <>
+                  {/* Selector de días */}
+                  <div className="group relative mt-5">
+                    {showLeftArrow && (
+                      <button
+                        type="button"
+                        onClick={() => scroll('left')}
+                        aria-label="Días anteriores"
+                        className="absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-noche/90 text-white md:grid"
+                      >
+                        <IconChevronLeft className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    <div ref={scrollContainerRef} className="no-scrollbar -mx-1 overflow-x-auto px-1 pb-1">
+                      <div className="flex gap-2">
+                        {fechasUnicas.map((fecha) => {
+                          const primerEvento = eventos.find((e) => e.fecha === fecha);
+                          const [dia, mes] = fecha.split('/');
+                          const sel = fecha === diaSeleccionado;
+                          return (
+                            <button
+                              key={fecha}
+                              type="button"
+                              onClick={() => setDiaSeleccionado(fecha)}
+                              aria-pressed={sel}
+                              className={`flex w-[92px] shrink-0 flex-col items-center rounded-2xl border px-2 py-3 transition-all ${
+                                sel ? 'border-transparent shadow-lg' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+                              }`}
+                              style={sel ? { backgroundColor: color, color: onColor } : { color: 'rgba(255,255,255,0.75)' }}
+                            >
+                              <span className="font-display text-2xl font-semibold leading-none">{dia}</span>
+                              <span className="mt-1 text-xs capitalize opacity-80">{MESES[Number(mes) - 1] ?? mes}</span>
+                              {primerEvento?.tipo_dia && (
+                                <span className="mt-1 w-full truncate text-[10px] font-medium opacity-90">{primerEvento.tipo_dia}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {showRightArrow && (
+                      <button
+                        type="button"
+                        onClick={() => scroll('right')}
+                        aria-label="Días siguientes"
+                        className="absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-noche/90 text-white md:grid"
+                      >
+                        <IconChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Eventos del día */}
+                  {eventosDelDia.length > 0 && (
+                    <ol className="relative mt-6 space-y-3 border-l border-white/10 pl-5">
+                      {eventosDelDia.map((evento) => (
+                        <li key={evento.id} className="relative">
+                          <span
+                            aria-hidden
+                            className="absolute -left-[26px] top-4 h-2.5 w-2.5 rounded-full ring-4 ring-noche"
+                            style={{ backgroundColor: ink }}
+                          />
+                          <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3.5 transition-colors hover:border-white/15">
+                            <div className="flex items-start gap-3">
+                              <span
+                                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums"
+                                style={{ backgroundColor: withAlpha(ink, 0.16), color: ink, boxShadow: `inset 0 0 0 1px ${withAlpha(ink, 0.35)}` }}
+                              >
+                                {evento.hora.substring(0, 5)}
+                              </span>
+                              <p className="flex-1 font-semibold leading-snug text-white [overflow-wrap:anywhere]">{evento.tipo_evento}</p>
+                            </div>
+
+                            <div className="mt-2 space-y-1 text-xs text-white/60">
+                              {evento.direccion_actividad && (
+                                <p className="flex items-start gap-1.5">
+                                  <IconPin className="mt-px w-3.5 h-3.5 shrink-0" style={{ color: ink }} />
+                                  <span className="[overflow-wrap:anywhere]">{evento.direccion_actividad}</span>
+                                </p>
+                              )}
+                              {(evento.tipo_oferente || evento.oferente) && (
+                                <p className="[overflow-wrap:anywhere]">
+                                  {evento.tipo_oferente && (
+                                    <span
+                                      className="mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                                      style={{ backgroundColor: withAlpha(ink, 0.16), color: ink, boxShadow: `inset 0 0 0 1px ${withAlpha(ink, 0.3)}` }}
+                                    >
+                                      {evento.tipo_oferente}
+                                    </span>
+                                  )}
+                                  {evento.oferente}
+                                </p>
+                              )}
+                              {evento.banda && evento.banda !== 'Ninguna' && (
+                                <p className="flex items-center gap-1.5">
+                                  <IconMusic className="w-3.5 h-3.5 shrink-0" />
+                                  {evento.banda}
+                                </p>
+                              )}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <a
+                                href={icsUrl({ id: evento.id })}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/75 hover:border-white/25 hover:text-white"
+                              >
+                                <IconCalendar className="h-3.5 w-3.5" /> Agregar a mi calendario
+                              </a>
+                              {evento.direccion_actividad && (
+                                <a
+                                  href={comoLlegarUrl(evento.direccion_actividad)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/75 hover:border-white/25 hover:text-white"
+                                >
+                                  <IconPin className="h-3.5 w-3.5" /> Cómo llegar
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+
+                  <div
+                    className="mt-6 rounded-xl border p-4 text-center"
+                    style={{ backgroundColor: withAlpha(color, 0.07), borderColor: withAlpha(color, 0.3) }}
+                  >
+                    <p className="font-display text-lg font-semibold" style={{ color: ink }}>¡Únete a nosotros!</p>
+                    <p className="text-sm text-white/65">Vive la tradición en cada evento</p>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+        </div>
+      </div>
+
+      {/* ===== Integrantes ===== */}
+      <section className="card-fest mt-6 p-5 sm:p-7">
+        <CofradesSection cofradiaId={detail.id} cofradiaColor={color} cofradiaNombre={detail.nickname_cofradia} />
+      </section>
+    </div>
+  );
 }

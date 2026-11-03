@@ -1,15 +1,36 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-import Navbar from "@/components/Navbar";
-import FloatingReportButton from "@/components/FloatingButtons";
-// import WelcomeModal from "@/components/WelcomeModal";
-import Footer from "@/components/Footer";
 import { AlertProvider } from "@/components/AlertContext";
+import PwaProvider from "@/components/PwaProvider";
+
+const DESCRIPCION =
+  "La app oficial de la Festividad de los Negritos de Huánuco: mapa en vivo, agenda, festival, sigueteo de cofradías, personajes, historia y devoción.";
 
 export const metadata: Metadata = {
-  title: "Gatilín Digital - Negritos de Huánuco",
-  description: "La App oficial de la festividad de los Negritos de Huánuco",
+  // URL pública del sitio (para las imágenes de vista previa). Defínela en .env.production
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  title: "Gatilín Digital · Negritos de Huánuco",
+  description: DESCRIPCION,
+  manifest: "/manifest.webmanifest",
+  applicationName: "Gatilín Digital",
+  icons: {
+    icon: [{ url: "/favicon.ico" }, { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" }],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: { capable: true, title: "Gatilín", statusBarStyle: "black-translucent" },
+  openGraph: {
+    type: "website",
+    siteName: "Gatilín Digital",
+    title: "Gatilín Digital · Negritos de Huánuco",
+    description: DESCRIPCION,
+    images: [{ url: "/images/og-default.jpg", width: 1200, height: 630 }],
+    locale: "es_PE",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0c0812",
 };
 
 export default function RootLayout({
@@ -20,33 +41,17 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Cargamos la fuente Gabriela desde Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Gabriela&display=swap" 
-          rel="stylesheet" 
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=Outfit:wght@300..800&display=swap"
+          rel="stylesheet"
         />
       </head>
-      
-      {/* Nota: Ya no es necesario poner style={{ fontFamily... }} aquí 
-        porque tu globals.css ya aplica la fuente al 'body' automáticamente.
-      */}
-      <body className="antialiased min-h-screen pt-16 bg-neutral-950 text-white">
+      <body className="antialiased min-h-screen bg-noche text-negrito-text">
         <AlertProvider>
-          {/* pt-16 compensa la altura del Navbar fijo */}
-          <Navbar />
-          
-          {/* Modal de bienvenida (solo aparece una vez) */}
-          {/* <WelcomeModal /> */}
-          
-          {/* Botón flotante de reporte (Matraca) */}
-          <FloatingReportButton />
-          
-          <main className="max-w-5xl mx-auto px-4 py-8">
-            {children}
-          </main>
-          <Footer />
+          {children}
+          <PwaProvider />
         </AlertProvider>
       </body>
     </html>

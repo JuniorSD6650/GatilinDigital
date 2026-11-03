@@ -1,24 +1,52 @@
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../lib/config');
 
-// Middleware para proteger rutas
-const protect = (req, res, next) => {
+const leerToken = (req) => {
   const authHeader = req.header('Authorization');
-  const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.replace('Bearer ', '').trim()
-    : null;
+  return authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+};
 
-  if (!token) {
-    return res.status(401).json({ message: 'Acceso no autorizado, token no encontrado.' });
-  }
+const responder = (res, status, message) => res.status(status).json({ error: message, message });
 
+// Exige un token válido
+const protect = (req, res, next) => {
+  const token = leerToken(req);
+  if (!token) return responder(res, 401, 'Acceso no autorizado, token no encontrado.');
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
-    req.user = decoded;
+    req.user = jwt.verify(token, jwtSecret);
     next();
-  } catch (error) {
-    console.error("Error al verificar el token:", error.message);
-    return res.status(401).json({ message: 'Token inválido o expirado.' });
+  } catch {
+    return responder(res, 401, 'Token inválido o expirado.');
   }
 };
 
+// Exige token + uno de los roles indicados
+const requireRole = (...roles) => (req, res, next) =>
+  protect(req, res, () => {
+    if (!roles.includes(req.user.role)) return responder(res, 403, 'No tienes permiso para realizar esta acción.');
+    next();
+  });
+
+const requireAdmin = requireRole('admin');
+
+// Si hay token válido lo decodifica; si no, continúa como público
+const optionalAuth = (req, res, next) => {
+  const token = leerToken(req);
+  if (token) {
+    try {
+      req.user = jwt.verify(token, jwtSecret);
+    } catch {
+      req.user = undefined;
+    }
+  }
+  next();
+};
+
+const isAdmin = (req) => req.user?.role === 'admin';
+
 module.exports = protect;
+module.exports.protect = protect;
+module.exports.requireRole = requireRole;
+module.exports.requireAdmin = requireAdmin;
+module.exports.optionalAuth = optionalAuth;
+module.exports.isAdmin = isAdmin;

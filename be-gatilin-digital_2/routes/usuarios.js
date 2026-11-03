@@ -1,15 +1,19 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const knex = require('knex')(require('../knexfile'));
-const router = express.Router();
 const { format } = require('date-fns');
-const protect = require('../middleware/auth');
 
-const fs = require('fs');
-const multer = require('multer');
-const ExcelJS = require('exceljs');
-const upload = multer({ dest: 'uploads/' });
+const knex = require('../lib/db');
+const config = require('../lib/config');
+const { protect, requireAdmin } = require('../middleware/auth');
+const { excelUpload } = require('../middleware/upload');
+const limits = require('../middleware/rateLimits');
+const { z, validate, enteroOpc, paginacionQuery } = require('../middleware/validate');
+const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
+const { audit } = require('../lib/audit');
+const { sendTemplate, bulkImport } = require('../lib/excel');
+
+const router = express.Router();
 
 const USUARIO_COLUMNS = [
   { header: 'Username', key: 'username', width: 30 },
@@ -17,343 +21,188 @@ const USUARIO_COLUMNS = [
   { header: 'Cofradía ID', key: 'cofradia_id', width: 20 },
 ];
 
-// Descargar plantilla
-router.get('/template', async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Plantilla Usuarios');
+// ---- Validación ----
+const username = z.preprocess((v) => (v == null ? v : String(v).trim()),
+  z.string({ error: 'Es obligatorio' }).min(3, 'Mínimo 3 caracteres').max(50, 'Máximo 50 caracteres')
+    .regex(/^[A-Za-z0-9._-]+$/, 'Solo letras, números, punto, guion y guion bajo'));
+const password = z.preprocess((v) => (v == null ? v : String(v)),
+  z.string({ error: 'Es obligatoria' }).min(8, 'La contraseña debe tener al menos 8 caracteres').max(128));
 
-    worksheet.columns = USUARIO_COLUMNS;
-    worksheet.getRow(1).font = { bold: true };
-
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=Plantilla_Usuarios.xlsx'
-    );
-
-    await workbook.xlsx.write(res);
-    res.end();
-  } catch (error) {
-    res.status(500).json({ error: 'Error al generar la plantilla', details: error.message });
-  }
+const loginSchema = z.object({
+  username: z.string({ error: 'Es obligatorio' }).trim().min(1, 'Es obligatorio').max(255),
+  password: z.string({ error: 'Es obligatoria' }).min(1, 'Es obligatoria').max(128),
 });
-
-// Ruta para obtener todos los usuarios
-router.get('/', async (req, res) => {
-  try {
-    let usuarios = await knex('usuarios')
-      .select(
-        'usuarios.id',
-        'usuarios.username',
-        'usuarios.role',
-        'usuarios.created_at',
-        'usuarios.cofradia_id',
-        'cofradia.nickname_cofradia'
-      )
-      .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
-      .where('usuarios.role', 'localizador')
-      .orderBy('usuarios.id', 'desc');
-
-    usuarios = usuarios.map(usuario => ({
-      ...usuario,
-      created_at: usuario.created_at
-        ? format(new Date(usuario.created_at), 'dd/MM/yyyy HH:mm:ss')
-        : null
-    }));
-
-    res.status(200).json(usuarios);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo los usuarios.', details: error.message || error });
-  }
+const crearSchema = z.object({ username, password, cofradia_id: enteroOpc });
+const editarSchema = z.object({
+  username: username.optional(),
+  password: z.preprocess((v) => (v === '' ? undefined : v), password.optional()),
+  role: z.enum(['admin', 'localizador']).optional(),
+  cofradia_id: enteroOpc.optional(),
 });
+const importSchema = z.object({ username, password, cofradia_id: enteroOpc });
 
-// Ruta para obtener el administrador
-router.get('/admin', async (req, res) => {
-  try {
-    const admin = await knex('usuarios').where('role', 'admin').first();
-    if (!admin) {
-      return res.status(404).json({ message: 'Administrador no encontrado.' });
-    }
+const existeCofradia = async (id) => !id || Boolean(await knex('cofradia').where('id', id).first('id'));
 
-    res.status(200).json(admin);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo el administrador.' });
+// Hash ficticio para que un usuario inexistente tarde lo mismo que uno real (evita adivinar usuarios)
+const HASH_FICTICIO = bcrypt.hashSync('contraseña-ficticia-para-tiempo-constante', 10);
+
+// =====================================================================
+// LOGIN (público, con límite de intentos)
+// =====================================================================
+router.post('/login', limits.login, validate(loginSchema), asyncH(async (req, res) => {
+  const { username: user, password: pass } = req.body;
+
+  const usuario = await knex('usuarios')
+    .select('usuarios.id', 'usuarios.username', 'usuarios.password', 'usuarios.role', 'usuarios.cofradia_id', 'cofradia.nickname_cofradia')
+    .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
+    .where('usuarios.username', user)
+    .first();
+
+  const ok = await bcrypt.compare(pass, usuario?.password || HASH_FICTICIO);
+  if (!usuario || !ok) {
+    await audit({ ip: req.ip, user: { username: user } }, 'login_fallido', 'usuario', usuario?.id ?? null);
+    // Mismo mensaje para usuario inexistente y contraseña incorrecta
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.', message: 'Usuario o contraseña incorrectos.' });
   }
-});
 
-// Ruta protegida para obtener el perfil del usuario
-router.get('/perfil', protect, async (req, res) => {
-  try {
-    const userId = req.user.id;
+  const payload = {
+    id: usuario.id,
+    username: usuario.username,
+    role: usuario.role,
+    cofradiaId: usuario.cofradia_id,
+    cofradia_nombre: usuario.nickname_cofradia,
+  };
+  const token = jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+  await audit({ ip: req.ip, user: payload }, 'login', 'usuario', usuario.id);
 
-    if (!userId) {
-      return res.status(400).json({ message: 'ID de usuario no encontrado en el token.' });
-    }
+  res.json({ message: 'Login exitoso', token });
+}));
 
-    const user = await knex('usuarios')
-      .select(
-        'usuarios.username',
-        'usuarios.role',
-        'usuarios.cofradia_id',
-        'cofradia.nickname_cofradia'
-      )
-      .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
-      .where('usuarios.id', userId)
-      .first();
+// Perfil del usuario autenticado
+router.get('/perfil', protect, asyncH(async (req, res) => {
+  const user = await knex('usuarios')
+    .select('usuarios.id', 'usuarios.username', 'usuarios.role', 'usuarios.cofradia_id', 'cofradia.nickname_cofradia')
+    .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
+    .where('usuarios.id', req.user.id)
+    .first();
+  if (!user) return notFound(res, 'Usuario no encontrado.');
+  res.json(user);
+}));
 
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
-    }
+// =====================================================================
+// GESTIÓN (solo admin)
+// =====================================================================
+router.use(requireAdmin);
 
-    res.json(user);
-  } catch (error) {
-    console.error("Error al obtener el perfil del usuario:", error);
-    res.status(500).json({ message: 'Error al obtener el perfil del usuario.' });
-  }
-});
+router.get('/template', asyncH(async (req, res) => {
+  await sendTemplate(res, {
+    nombreHoja: 'Plantilla Usuarios',
+    filename: 'Plantilla_Usuarios.xlsx',
+    columns: USUARIO_COLUMNS,
+    ejemplo: { username: 'localizador.ejemplo', password: 'ClaveSegura123', cofradia_id: 1 },
+  });
+}));
 
-// Cargar datos por excel
-router.post('/bulk-upload', upload.single('file'), async (req, res) => {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(req.file.path);
-    const worksheet = workbook.getWorksheet(1);
-    const failedRecords = [];
+// Localizadores
+router.get('/', validate(paginacionQuery, 'query'), asyncH(async (req, res) => {
+  let query = knex('usuarios')
+    .select('usuarios.id', 'usuarios.username', 'usuarios.role', 'usuarios.created_at', 'usuarios.cofradia_id', 'cofradia.nickname_cofradia')
+    .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
+    .where('usuarios.role', 'localizador')
+    .orderBy('usuarios.id', 'desc');
+  query = searchIn(query, req.query.q, ['usuarios.username', 'cofradia.nickname_cofradia']);
 
-    for (let i = 2; i <= worksheet.rowCount; i++) {
-      const row = worksheet.getRow(i);
-      const record = {
-        username: row.getCell(1).value?.toString().trim() || null,
-        password: row.getCell(2).value?.toString().trim() || null,
-        cofradia_id: row.getCell(3).value ? parseInt(row.getCell(3).value) : null,
-        created_at: row.getCell(4).value ? row.getCell(4).value.toISOString() : knex.fn.now(),
-      };
+  res.json(await paginate(req, query, {
+    idColumn: 'usuarios.id',
+    map: (u) => ({ ...u, created_at: u.created_at ? format(new Date(u.created_at), 'dd/MM/yyyy HH:mm:ss') : null }),
+  }));
+}));
 
-      if (!record.username || !record.password) {
-        console.warn(`Fila ${i} ignorada: faltan campos obligatorios.`);
-        continue;
-      }
+// Datos del administrador (sin contraseña)
+router.get('/admin', asyncH(async (req, res) => {
+  const admin = await knex('usuarios').select('id', 'username', 'role', 'created_at').where('role', 'admin').first();
+  if (!admin) return notFound(res, 'Administrador no encontrado.');
+  res.json(admin);
+}));
 
-      try {
-        await knex('usuarios').insert(record);
-      } catch (error) {
-        console.error(`Error en fila ${i}:`, error.message);
-        failedRecords.push(record);
-      }
-    }
-
-    fs.unlink(req.file.path, (err) => {
-      if (err) {
-        console.error('Error eliminando archivo temporal:', err.message);
-      } else {
-        console.log('Archivo temporal eliminado:', req.file.path);
-      }
-    });
-
-    if (failedRecords.length > 0) {
-      const failedWorkbook = new ExcelJS.Workbook();
-      const failedWorksheet = failedWorkbook.addWorksheet('Errores');
-
-      failedWorksheet.columns = USUARIO_COLUMNS;
-      failedWorksheet.getRow(1).font = { bold: true };
-
-      failedRecords.forEach((record) => {
-        failedWorksheet.addRow(record);
+router.post('/bulk-upload', excelUpload, (req, res) =>
+  bulkImport(req, res, {
+    entidad: 'usuario',
+    columns: USUARIO_COLUMNS,
+    schema: importSchema,
+    check: async (rec) => ((await existeCofradia(rec.cofradia_id)) ? null : `La cofradía ${rec.cofradia_id} no existe.`),
+    insert: async (rec, db) => {
+      await db('usuarios').insert({
+        username: rec.username,
+        password: await bcrypt.hash(rec.password, 10), // antes se guardaba en texto plano
+        role: 'localizador',
+        cofradia_id: rec.cofradia_id,
+        created_at: db.fn.now(),
       });
+    },
+  })
+);
 
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename=Errores_Carga_Usuarios.xlsx'
-      );
+router.post('/', validate(crearSchema), asyncH(async (req, res) => {
+  const { username: user, password: pass, cofradia_id } = req.body;
+  if (!(await existeCofradia(cofradia_id))) return badRequest(res, 'La cofradía seleccionada no existe.');
+  if (await knex('usuarios').where('username', user).first('id')) return badRequest(res, 'Ese nombre de usuario ya existe.');
 
-      await failedWorkbook.xlsx.write(res);
-      return res.end();
-    }
+  const [id] = await knex('usuarios').insert({
+    username: user,
+    password: await bcrypt.hash(pass, 10),
+    role: 'localizador',
+    cofradia_id: cofradia_id || null,
+    created_at: knex.fn.now(),
+  });
+  await audit(req, 'crear', 'usuario', id, { username: user, cofradia_id });
+  res.status(201).json({ message: 'Usuario creado exitosamente', userId: id });
+}));
 
-    res.status(200).json({ message: 'Datos cargados correctamente.' });
-  } catch (err) {
-    console.error('Error al procesar el archivo:', err.message);
-
-    fs.unlink(req.file.path, (unlinkErr) => {
-      if (unlinkErr) {
-        console.error('Error eliminando archivo temporal:', unlinkErr.message);
-      }
-    });
-
-    res.status(500).json({ error: 'Error al procesar el archivo', details: err.message });
-  }
-});
-
-// Ruta para crear un administrador
-router.post('/admin', async (req, res) => {
-  const { username, password, email, phone } = req.body;
-
-  try {
-    const existingAdmin = await knex('usuarios').where('role', 'admin').first();
-    if (existingAdmin) {
-      return res.status(400).json({ message: 'Ya existe un administrador.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newAdmin = await knex('usuarios').insert({
-      username,
-      password: hashedPassword,
-      role: 'admin',
-      email,
-      phone,
-      created_at: knex.fn.now()
-    });
-
-    res.status(201).json({ message: 'Administrador creado exitosamente', adminId: newAdmin[0] });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando el administrador.' });
-  }
-});
-
-// Ruta para el login del administrador
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    // Buscar el usuario en la base de datos con información de la cofradía
-    const admin = await knex('usuarios')
-      .select(
-        'usuarios.id',
-        'usuarios.username',
-        'usuarios.password',
-        'usuarios.role',
-        'usuarios.cofradia_id',
-        'cofradia.nickname_cofradia'
-      )
-      .leftJoin('cofradia', 'usuarios.cofradia_id', 'cofradia.id')
-      .where('usuarios.username', username)
-      .first();
-
-    if (!admin) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
-    }
-
-    // Verificar si la contraseña es correcta
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Contraseña incorrecta.' });
-    }
-
-    // Generar el token JWT con información de la cofradía
-    const payload = {
-      id: admin.id,
-      username: admin.username,
-      role: admin.role,
-      cofradiaId: admin.cofradia_id,
-      cofradia_nombre: admin.nickname_cofradia,
-    };
-
-    const token = jwt.sign(payload, process.env.JWT_SECRET || "secretkey", {
-      expiresIn: "30d",
-    });
-
-    res.status(200).json({ message: 'Login exitoso', token });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error en el login.' });
-  }
-});
-
-// Ruta para añadir usuarios
-router.post('/', async (req, res) => {
-  const { username, password, cofradia_id } = req.body;
-
-  try {
-    // Validar si cofradia_id existe en la tabla cofradia
-    if (cofradia_id) {
-      const cofradia = await knex('cofradia').where('id', cofradia_id).first();
-      if (!cofradia) {
-        return res.status(400).json({ message: 'El cofradia_id proporcionado no es válido.' });
-      }
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await knex('usuarios').insert({
-      username,
-      password: hashedPassword,
-      role: 'localizador',
-      cofradia_id: cofradia_id || null,
-      created_at: knex.fn.now()
-    });
-
-    res.status(201).json({ message: 'Usuario creado exitosamente', userId: newUser[0] });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando el usuario.', details: error.message || error });
-  }
-});
-
-// Ruta para editar usuarios
-router.put('/:id', async (req, res) => {
+router.put('/:id', validate(editarSchema), asyncH(async (req, res) => {
   const { id } = req.params;
-  const { username, password, role, cofradia_id } = req.body;
+  const user = await knex('usuarios').where('id', id).first();
+  if (!user) return notFound(res, 'Usuario no encontrado.');
 
-  try {
-    const user = await knex('usuarios').where('id', id).first();
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
+  const { username: nuevoNombre, password: pass, role, cofradia_id } = req.body;
+  const updates = {};
+  if (nuevoNombre && nuevoNombre !== user.username) {
+    if (await knex('usuarios').where('username', nuevoNombre).whereNot('id', id).first('id')) {
+      return badRequest(res, 'Ese nombre de usuario ya existe.');
     }
-
-    const updatedUser = {
-      username: username || user.username,
-      role: role || user.role,
-    };
-
-    // Solo actualizar cofradia_id si se envía explícitamente
-    if (cofradia_id !== undefined) {
-      updatedUser.cofradia_id = cofradia_id;
-    }
-
-    // Solo actualizar la contraseña si se envía
-    if (password) {
-      updatedUser.password = await bcrypt.hash(password, 10);
-    }
-
-    await knex('usuarios').where('id', id).update(updatedUser);
-
-    res.status(200).json({ message: 'Usuario actualizado exitosamente' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando el usuario.' });
+    updates.username = nuevoNombre;
   }
-});
+  if (role && role !== user.role) {
+    if (Number(id) === Number(req.user.id)) return badRequest(res, 'No puedes cambiar tu propio rol.');
+    updates.role = role;
+  }
+  if (cofradia_id !== undefined) {
+    if (!(await existeCofradia(cofradia_id))) return badRequest(res, 'La cofradía seleccionada no existe.');
+    updates.cofradia_id = cofradia_id;
+  }
+  if (pass) updates.password = await bcrypt.hash(pass, 10);
+  if (Object.keys(updates).length === 0) return res.json({ message: 'Sin cambios' });
 
-// Ruta para eliminar un usuario
-router.delete('/:id', async (req, res) => {
+  await knex('usuarios').where('id', id).update(updates);
+  await audit(req, 'editar', 'usuario', id, {
+    campos: Object.keys(updates).map((k) => (k === 'password' ? 'contraseña' : k)),
+    ...(updates.role ? { role: [user.role, updates.role] } : {}),
+  });
+  res.json({ message: 'Usuario actualizado exitosamente' });
+}));
+
+router.delete('/:id', asyncH(async (req, res) => {
   const { id } = req.params;
-
-  try {
-    const user = await knex('usuarios').where('id', id).first();
-
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
-    }
-
-    await knex('usuarios').where('id', id).del();
-
-    res.status(200).json({ message: 'Usuario eliminado exitosamente.' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando el usuario.' });
+  const user = await knex('usuarios').where('id', id).first();
+  if (!user) return notFound(res, 'Usuario no encontrado.');
+  if (Number(id) === Number(req.user.id)) return badRequest(res, 'No puedes eliminar tu propio usuario.');
+  if (user.role === 'admin') {
+    const [{ n }] = await knex('usuarios').where('role', 'admin').count({ n: '*' });
+    if (Number(n) <= 1) return badRequest(res, 'No se puede eliminar el único administrador.');
   }
-});
+  await knex('usuarios').where('id', id).del();
+  await audit(req, 'eliminar', 'usuario', id, { username: user.username });
+  res.json({ message: 'Usuario eliminado exitosamente.' });
+}));
 
 module.exports = router;

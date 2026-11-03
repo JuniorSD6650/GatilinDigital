@@ -2,14 +2,13 @@
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { logout, getCurrentUser } from '@/services/apis/api-auth';
-import { useRouter, usePathname } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { IconGlobe, IconLogout } from '@/components/ui/Icons';
 
-export default function LocalizadorLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function LocalizadorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [cofradiaNombre, setCofradiaNombre] = useState('');
@@ -29,90 +28,47 @@ export default function LocalizadorLayout({
 
   return (
     <ProtectedRoute allowedRole="localizador">
-      <div className="min-h-screen bg-negrito-bg">
-        
-        {/* Header de Localizador */}
-        <header className="bg-negrito-card border-b border-white/10 sticky top-0 z-40 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              
-              {/* Logo / Título */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-festivo-cyan to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">📍</span>
-                </div>
-                <div>
-                  <h1 className="text-xl font-display font-bold text-festivo-cyan">
-                    Panel de Localizador
-                  </h1>
-                  <p className="text-xs text-gray-400">{cofradiaNombre}</p>
-                </div>
+      <div className="min-h-screen bg-noche [--font-display:var(--font-body)]">
+        <header className="sticky top-0 z-40 border-b border-white/10 bg-noche/85 backdrop-blur-xl">
+          <div className="plumaje-band h-[3px]" />
+          <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-3 px-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Image src="/logo.svg" alt="" width={36} height={36} className="h-9 w-9 shrink-0" />
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-white sm:text-base">Panel de localizador</h1>
+                <p className="truncate text-xs text-white/50">{cofradiaNombre}</p>
               </div>
+            </div>
 
-              {/* Usuario y Logout */}
-              <div className="flex items-center gap-4">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-white">{username}</p>
-                  <p className="text-xs text-gray-400">Localizador</p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm font-medium"
-                >
-                  Cerrar Sesión
-                </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/sigueteo"
+                title="Ver sitio público"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition-colors hover:border-white/25 hover:text-white"
+              >
+                <IconGlobe className="w-4 h-4" />
+                <span className="hidden sm:inline">Ver sitio</span>
+              </Link>
+              <div className="hidden items-center gap-2 border-l border-white/10 pl-3 md:flex">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-festivo-cyan/15 text-sm font-bold text-festivo-cyan">
+                  {username.charAt(0).toUpperCase() || 'L'}
+                </span>
+                <span className="text-sm text-white/80">{username}</span>
               </div>
-
+              <button
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/20"
+              >
+                <IconLogout className="w-4 h-4" />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Navegación */}
-        <nav className="bg-negrito-card/50 border-b border-white/5">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex gap-1 overflow-x-auto">
-              <NavLink href="/localizador" label="Mi Ubicación" icon="📍" />
-            </div>
-          </div>
-        </nav>
-
-        {/* Contenido */}
-        <main className="max-w-4xl mx-auto px-4 py-8">
-          {children}
-        </main>
-
+        <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
       </div>
     </ProtectedRoute>
-  );
-}
-
-// Componente auxiliar para links de navegación
-function NavLink({ href, label, icon, external }: { href: string; label: string; icon: string; external?: boolean }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const isActive = pathname === href;
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (!external) {
-      e.preventDefault();
-      router.push(href);
-    }
-  };
-
-  return (
-    <a
-      href={href}
-      onClick={handleClick}
-      className={`
-        flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap
-        ${isActive 
-          ? 'bg-negrito-bg text-festivo-cyan border-b-2 border-festivo-cyan' 
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
-        }
-      `}
-    >
-      <span>{icon}</span>
-      {label}
-    </a>
   );
 }

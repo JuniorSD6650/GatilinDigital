@@ -1,22 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getEventos, createEvento, updateEvento, deleteEvento, downloadTemplate, uploadExcel, type Evento } from '@/services/apis/api-admin';
+import { createEvento, updateEvento, deleteEvento, downloadTemplate, exportExcel, getPaginado, type Evento } from '@/services/apis/api-admin';
 import { API_URL } from '@/services/api';
 import { useAlert } from '@/components/AlertContext';
+import {
+  AdminModal, ModalCancel, ModalSave, ActionButton, RowActions,
+  PageToolbar, TemplateButton, UploadExcelButton, NewButton, ExportButton,
+  LoadingState, ErrorBanner, EmptyState, FilterBar, SearchField, FilterSelect, Pagination, useServerList,
+} from '@/components/admin/AdminUI';
 
 interface Cofradia {
   id: number;
   nickname_cofradia: string;
 }
 
+const fetchEventos = (q: Record<string, string | number | undefined>) => getPaginado<Evento>('eventos', { ...q, orden: 'agenda' });
+
 export default function EventosAdminPage() {
   const { showAlert, showConfirm } = useAlert();
-  const [eventos, setEventos] = useState<Evento[]>([]);
   const [cofradias, setCofradias] = useState<Cofradia[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroCofradia, setFiltroCofradia] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState(''); // AAAA-MM-DD
+
+  // Paginación, búsqueda y filtros en el servidor
+  const filtros = { q: searchTerm || undefined, cod_cofradia: filtroCofradia || undefined, fecha: filtroFecha || undefined };
+  const pag = useServerList<Evento>(fetchEventos, filtros);
+  const { error } = pag;
+  const loadData = pag.reload;
 
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Evento | null>(null);
@@ -24,20 +36,8 @@ export default function EventosAdminPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadData();
     loadCofradias();
   }, []);
-
-  const loadData = async () => {
-    try {
-      const data = await getEventos();
-      setEventos(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadCofradias = async () => {
     try {
@@ -128,144 +128,98 @@ export default function EventosAdminPage() {
     downloadTemplate('eventos', 'Plantilla_Eventos.xlsx');
   };
 
-  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    try {
-      await uploadExcel('eventos', file);
-      showAlert('success', 'Datos cargados correctamente desde Excel');
-      loadData();
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al cargar el archivo Excel');
-    }
-    e.target.value = '';
-  };
-
-  const filteredData = eventos.filter(e =>
-    (e.tipo_evento && e.tipo_evento.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (e.oferente && e.oferente.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (e.nickname_cofradia && e.nickname_cofradia.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="text-4xl">⏳</div>
-          <p className="text-gray-400">Cargando eventos...</p>
-        </div>
-      </div>
-    );
-  }
+  const sinFiltros = !searchTerm && !filtroCofradia && !filtroFecha;
+  if (pag.loading && pag.total === 0 && sinFiltros && !error) return <LoadingState label="Cargando eventos..." />;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-display font-bold text-white">Eventos</h2>
-          <p className="text-gray-400">Gestiona las actividades y eventos de las cofradías</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDownloadTemplate}
-            className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors text-sm font-medium"
-          >
-            📥 Descargar Plantilla
-          </button>
-          <label className="px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20 transition-colors text-sm font-medium cursor-pointer">
-            📤 Cargar Excel
-            <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUploadExcel} />
-          </label>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 transition-colors text-sm font-bold"
-          >
-            ➕ Nuevo Evento
-          </button>
-        </div>
-      </div>
 
-      {/* Buscador */}
-      <div className="relative max-w-2xl">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <span className="text-gray-400">🔍</span>
-        </div>
+      <PageToolbar title="Eventos" subtitle="Gestiona las actividades y eventos de las cofradías">
+        <TemplateButton onClick={handleDownloadTemplate} />
+        <UploadExcelButton endpoint="eventos" onDone={loadData} />
+        <ExportButton onClick={() => exportExcel('eventos', 'Agenda_Eventos.xlsx', filtros)} />
+        <NewButton onClick={handleCreate}>Nuevo Evento</NewButton>
+      </PageToolbar>
+
+      <FilterBar>
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por tipo, oferente o dirección..." />
+        <FilterSelect value={filtroCofradia} onChange={setFiltroCofradia} label="Cofradía">
+          <option value="">Todas las cofradías</option>
+          {cofradias.map((c) => (
+            <option key={c.id} value={c.id}>{c.nickname_cofradia}</option>
+          ))}
+        </FilterSelect>
         <input
-          type="text"
-          className="w-full pl-11 pr-4 py-3 bg-negrito-card border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-festivo-gold/50"
-          placeholder="Buscar evento..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          type="date"
+          value={filtroFecha}
+          onChange={(e) => setFiltroFecha(e.target.value)}
+          aria-label="Fecha"
+          className={`h-10 w-full rounded-lg border bg-negrito-card px-3 text-sm sm:w-auto ${filtroFecha ? 'border-festivo-gold/40 text-white' : 'border-white/10 text-gray-300'}`}
         />
-      </div>
+      </FilterBar>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 text-red-400">
-          {error}
-        </div>
-      )}
+      <ErrorBanner>{error}</ErrorBanner>
 
       {/* Tabla */}
-      <div className="bg-negrito-card border border-white/10 rounded-2xl overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-negrito-card">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-white/5">
+            <thead className="border-b border-white/10 bg-white/[0.03]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Fecha y Hora</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tipo</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Oferente</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Cofradía</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Dirección</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-400">Acciones</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Fecha y Hora</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Tipo</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Oferente</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Cofradía</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Dirección</th>
+                <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-300">
+              {pag.items.map((item) => (
+                <tr key={item.id} className="transition-colors hover:bg-white/[0.03]">
+                  <td className="px-5 py-3.5 text-sm text-gray-300">
                     <div>{item.fecha}</div>
-                    {item.hora && <div className="text-xs text-gray-500">{item.hora}</div>}
+                    {item.hora && <div className="text-xs text-gray-500">{item.hora.slice(0, 5)}</div>}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-white">{item.tipo_evento || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.oferente || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.nickname_cofradia || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{item.direccion_actividad || '-'}</td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 text-sm"
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id, item.tipo_evento || 'este evento')}
-                      className="px-3 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 text-sm"
-                    >
-                      🗑️ Eliminar
-                    </button>
+                  <td className="px-5 py-3.5 text-sm font-medium text-white">{item.tipo_evento || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-400">{item.oferente || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-400">{item.nickname_cofradia || '-'}</td>
+                  <td className="px-5 py-3.5 text-sm text-gray-400 max-w-xs truncate">{item.direccion_actividad || '-'}</td>
+                  <td className="px-5 py-3.5">
+                    <RowActions>
+                      <ActionButton kind="edit" onClick={() => handleEdit(item)} />
+                      <ActionButton kind="delete" onClick={() => handleDelete(item.id, item.tipo_evento || 'este evento')} />
+                    </RowActions>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filteredData.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              No se encontraron eventos
-            </div>
+          {!pag.loading && pag.total === 0 && (
+            <EmptyState
+              title="No se encontraron eventos"
+              description={searchTerm ? 'Prueba con otra búsqueda o cambia los filtros.' : undefined}
+            />
           )}
         </div>
+        <Pagination {...pag} noun="eventos" />
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-negrito-card border border-white/10 rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-display font-bold text-white mb-6">
-              {editingItem ? 'Editar Evento' : 'Nuevo Evento'}
-            </h3>
+      <AdminModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        locked={saving}
+        title={editingItem ? 'Editar Evento' : 'Nuevo Evento'}
+        size="xl"
+        footer={
+          <>
+            <ModalCancel onClick={() => setShowModal(false)} disabled={saving} />
+            <ModalSave onClick={handleSave} loading={saving} />
+          </>
+        }
+      >
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -384,24 +338,7 @@ export default function EventosAdminPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 px-4 py-2 bg-festivo-gold text-negrito-bg rounded-lg hover:bg-yellow-500 font-bold disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </AdminModal>
 
     </div>
   );

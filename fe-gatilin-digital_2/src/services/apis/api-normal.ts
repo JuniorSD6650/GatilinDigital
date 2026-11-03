@@ -1,4 +1,5 @@
-import { API_URL } from '../api';
+import { API_URL, BASE_URL } from '../api';
+import { getDeviceId } from '@/lib/device';
 
 // --- SECCIÓN FESTIVAL (Organizaciones) ---
 export interface Organizacion {
@@ -23,10 +24,26 @@ export const getOrganizaciones = async (): Promise<Organizacion[]> => {
 };
 
 // --- SECCIÓN SIGUETEO (Cofradías) ---
+export interface CofradiaActividad {
+  /** dd/mm/yyyy */
+  fecha: string;
+  direccion: string;
+}
+
 export interface CofradiaResumen {
   id: number;
+  slug?: string | null;
+  compartiendo?: boolean;
   nickname_cofradia: string;
+  nombre_cofradia?: string;
   color: string;
+  distrito?: string | null;
+  sede_local?: string | null;
+  votos?: number;
+  tiene_ubicacion?: boolean;
+  /** dd/mm/yyyy HH:mm:ss */
+  ubicacion_link_actualizado?: string | null;
+  actividades?: CofradiaActividad[];
 }
 
 export interface CofradiaRanking {
@@ -38,6 +55,11 @@ export interface CofradiaRanking {
 
 export interface CofradiaDetalle {
   id: number;
+  slug?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  compartiendo?: boolean;
+  ubicacion_actualizado_iso?: string | null;
   nickname_cofradia: string;
   nombre_cofradia: string;
   fecha_fundacion: string;
@@ -82,33 +104,119 @@ export const getCofradiaDetail = async (id: number): Promise<CofradiaDetalle | n
   }
 };
 
-export const votarCofradia = async (id: number): Promise<{ votos: number }> => {
+// Votos: un voto por dispositivo, por cofradía y por día (el servidor lo controla)
+export interface VotoRespuesta {
+  votos: number;
+  yaVotaste: boolean;
+  message?: string;
+}
+
+const votoHeaders = () => ({ 'Content-Type': 'application/json', 'X-Device-Id': getDeviceId() });
+
+const llamarVoto = async (id: number, method: 'GET' | 'POST' | 'DELETE'): Promise<VotoRespuesta> => {
+  const response = await fetch(`${API_URL}/cofradia/${id}/${method === 'GET' ? 'voto' : 'votar'}`, {
+    method,
+    headers: votoHeaders(),
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  // 409 = ya votó hoy: no es un error para la interfaz
+  if (response.status === 409) return { votos: data.votos, yaVotaste: true, message: data.message };
+  if (!response.ok) throw new Error(data.message || data.error || `Error HTTP: ${response.status}`);
+  return data;
+};
+
+export const getEstadoVoto = (id: number) => llamarVoto(id, 'GET');
+export const votarCofradia = (id: number) => llamarVoto(id, 'POST');
+export const quitarVotoCofradia = (id: number) => llamarVoto(id, 'DELETE');
+
+// --- Página pública por slug ---
+export const getCofradiaBySlug = async (slug: string): Promise<CofradiaDetalle | null> => {
   try {
-    const response = await fetch(`${API_URL}/cofradia/${id}/votar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    const response = await fetch(`${API_URL}/cofradia/slug/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+    if (!response.ok) return null;
     return await response.json();
-  } catch (error) {
-    console.error(`Error votando cofradía ${id}:`, error);
-    throw error;
+  } catch {
+    return null;
   }
 };
 
-export const quitarVotoCofradia = async (id: number): Promise<{ votos: number }> => {
+/** Enlace para compartir: el backend añade la vista previa (Open Graph) y redirige a la página */
+export const shareUrlCofradia = (c: { slug?: string | null; id: number }) => `${BASE_URL}/share/cofradia/${encodeURIComponent(c.slug || String(c.id))}`;
+export const pageUrlCofradia = (c: { slug?: string | null; id: number }) =>
+  c.slug ? `/cofradia?slug=${encodeURIComponent(c.slug)}` : `/sigueteo?cofradia=${c.id}`;
+
+// --- Mapa en vivo ---
+export interface CofradiaMapa {
+  id: number;
+  slug: string | null;
+  nickname_cofradia: string;
+  color: string;
+  distrito: string | null;
+  sede_local: string | null;
+  lat: number | null;
+  lng: number | null;
+  precision: number | null;
+  ubicacion_link: string | null;
+  compartiendo: boolean;
+  actualizado: string | null;
+  minutos_desde_actualizacion: number | null;
+}
+
+export const getMapaCofradias = async (): Promise<CofradiaMapa[]> => {
+  const response = await fetch(`${API_URL}/cofradia/mapa`, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+  return response.json();
+};
+
+// --- Agenda ---
+export interface EventoAgenda extends Evento {
+  fecha_iso: string;
+  cod_cofradia: number;
+  color?: string;
+  slug?: string | null;
+}
+
+export interface FiltrosAgenda {
+  desde?: string;
+  hasta?: string;
+  cod_cofradia?: number | string;
+  tipo_evento?: string;
+  q?: string;
+}
+
+export const getAgenda = async (filtros: FiltrosAgenda = {}): Promise<EventoAgenda[]> => {
+  const p = new URLSearchParams({ orden: 'agenda' });
+  Object.entries(filtros).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') p.set(k, String(v));
+  });
+  const response = await fetch(`${API_URL}/eventos?${p}`, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+  return response.json();
+};
+
+export const getTiposEvento = async (): Promise<string[]> => {
   try {
-    const response = await fetch(`${API_URL}/cofradia/${id}/votar`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error(`Error quitando voto de cofradía ${id}:`, error);
-    throw error;
+    const response = await fetch(`${API_URL}/eventos/tipos`);
+    return response.ok ? response.json() : [];
+  } catch {
+    return [];
   }
 };
+
+/** URL del calendario .ics (un evento, o la agenda filtrada) */
+export const icsUrl = (filtros: FiltrosAgenda & { id?: number } = {}) => {
+  const p = new URLSearchParams();
+  Object.entries(filtros).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') p.set(k, String(v));
+  });
+  const q = p.toString();
+  return `${API_URL}/eventos/ics${q ? `?${q}` : ''}`;
+};
+
+/** Google Maps: cómo llegar a una dirección de Huánuco */
+export const comoLlegarUrl = (direccion: string) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${direccion}, Huánuco, Perú`)}`;
 
 export const getRankingCofradias = async (): Promise<CofradiaRanking[]> => {
   try {
@@ -197,6 +305,25 @@ export const getCofradesbyCofradia = async (cofradiaId: number): Promise<Cofrade
     return await response.json();
   } catch (error) {
     console.error(`Error obteniendo cofrades de cofradía ${cofradiaId}:`, error);
+    return [];
+  }
+};
+
+// Foto grupal de la cuadrilla (una por temporada)
+export interface FotoCuadrilla {
+  id: number;
+  anio: number;
+  ruta_foto: string;
+  actualizado: string;
+}
+
+export const getFotosCuadrilla = async (cofradiaId: number): Promise<FotoCuadrilla[]> => {
+  try {
+    const response = await fetch(`${API_URL}/cofradia/${cofradiaId}/fotos`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error obteniendo fotos de la cuadrilla ${cofradiaId}:`, error);
     return [];
   }
 };

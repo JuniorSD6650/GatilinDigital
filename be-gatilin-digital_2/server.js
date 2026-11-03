@@ -1,49 +1,38 @@
-require('dotenv').config();
-const express = require('express');
-const mysql = require('mysql2');
-const path = require('path');
-const cors = require('cors');
-const routes = require('./routes');
+const config = require('./lib/config');
+const knex = require('./lib/db');
+const app = require('./app');
+const push = require('./lib/push');
 
-const app = express();
-
-// Habilitar CORS para permitir solicitudes desde otros dominios
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type', 'Authorization'], 
-}));
-
-// Configurar la ruta para los archivos estáticos
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
-
-app.use(express.json());
-
-app.use('/api', routes);
-
-const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'gatilin_db'
-});
-
-db.connect((err) => {
-  if (err) {
-    console.error('Error conectando a la base de datos: ' + err.stack);
-    return;
+const start = async () => {
+  // Verifica la conexión con la base de datos (Knex es la única conexión de la app)
+  try {
+    await knex.raw('select 1');
+    console.log('Conectado a la base de datos MySQL');
+  } catch (err) {
+    console.error('Error conectando a la base de datos:', err.message);
+    process.exit(1);
   }
-  console.log('Conectado a la base de datos MySQL');
-});
 
-const PORT = process.env.PORT || 5000;
+  const server = app
+    .listen(config.port, () => {
+      console.log(`Servidor backend corriendo en el puerto ${config.port}`);
+      if (!push.habilitado) console.log('Notificaciones push desactivadas (faltan VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY).');
+      push.iniciarProgramador();
+    })
+    .on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`El puerto ${config.port} está en uso. Por favor, intenta con otro puerto.`);
+      } else {
+        console.error(`Error al iniciar el servidor: ${err.message}`);
+      }
+      process.exit(1);
+    });
 
-app.listen(PORT, () => {
-  console.log(`Servidor backend corriendo en el puerto ${PORT}`);
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`El puerto ${PORT} está en uso. Por favor, intenta con otro puerto.`);
-  } else {
-    console.error(`Error al iniciar el servidor: ${err.message}`);
-  }
-});
+  const cerrar = () => {
+    server.close(() => knex.destroy().finally(() => process.exit(0)));
+  };
+  process.on('SIGTERM', cerrar);
+  process.on('SIGINT', cerrar);
+};
+
+start();

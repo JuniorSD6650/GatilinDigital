@@ -1,58 +1,402 @@
 @import "tailwindcss";
 
-/* Configuración del Tema para Tailwind v4 */
+/* =========================================================
+   GATILÍN DIGITAL — Sistema visual
+   Inspirado en la vestimenta del Negrito de Huánuco:
+   terciopelo nocturno, bordado en oro, plumaje multicolor,
+   cadenas plateadas, campanillas y cintas (tirantes).
+   ========================================================= */
+
 @theme {
-  /* Colores Personalizados */
-  --color-negrito-bg: #0a0a0a;
-  --color-negrito-card: #171717;
-  --color-negrito-text: #ededed;
-  
-  --color-festivo-gold: #FFD700;
-  --color-festivo-pink: #E91E63;
-  --color-festivo-purple: #9C27B0;
-  --color-festivo-green: #00C853;
-  --color-festivo-cyan: #00B0FF;
-  --color-festivo-orange: #FF6D00;
-  --color-festivo-red: #D50000;
-  --color-festivo-blue: #2962FF; /* Agregamos el azul para el festival */
+  /* --- Base: terciopelo nocturno --- */
+  --color-noche: #0c0812;
+  --color-noche-2: #120c1a;
+  --color-terciopelo: #1a1224;
 
-  /* Fuentes */
-  --font-display: "Gabriela", serif; 
-  --font-body: "Gabriela", serif;
+  /* --- Bordado y metales --- */
+  --color-oro: #f2c14e;
+  --color-oro-claro: #ffe08a;
+  --color-oro-oscuro: #b8862b;
+  --color-plata: #c9ced6;
+
+  /* --- Plumaje (colores del sombrero) --- */
+  --color-pluma-magenta: #ff1f8f;
+  --color-pluma-amarillo: #ffd60a;
+  --color-pluma-verde: #19c26b;
+  --color-pluma-azul: #2f6bff;
+  --color-pluma-violeta: #9b3dde;
+  --color-pluma-naranja: #ff7a1a;
+  --color-pluma-rojo: #ef2b3c;
+  --color-pluma-cian: #12c7e6;
+
+  /* --- Tokens heredados (usados por el panel admin) --- */
+  --color-negrito-bg: #0c0812;
+  --color-negrito-card: #17111f;
+  --color-negrito-black: #0c0812;
+  --color-negrito-text: #f1ecf4;
+
+  --color-festivo-gold: #f2c14e;
+  --color-festivo-pink: #ff1f8f;
+  --color-festivo-purple: #9b3dde;
+  --color-festivo-green: #19c26b;
+  --color-festivo-cyan: #12c7e6;
+  --color-festivo-orange: #ff7a1a;
+  --color-festivo-red: #ef2b3c;
+  --color-festivo-blue: #2f6bff;
+
+  /* --- Tipografía --- */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Estilos base */
-body {
-  background-color: var(--color-negrito-bg);
-  color: var(--color-negrito-text);
-  font-family: var(--font-body);
-  background-image: radial-gradient(rgba(255, 215, 0, 0.03) 1px, transparent 1px);
-  background-size: 30px 30px;
+/* ---------------------------------------------------------
+   BASE
+   --------------------------------------------------------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-noche);
+    color: var(--color-negrito-text);
+    font-family: var(--font-body);
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgb(242 193 78 / 0.35);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-oro);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-/* --- ANIMACIONES PERSONALIZADAS --- */
+/* ---------------------------------------------------------
+   COMPONENTES
+   --------------------------------------------------------- */
+@layer components {
+  .container-fest {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-fest {
+      padding-inline: 1.5rem;
+    }
+  }
 
-/* Animación de Flotación Suave (Para las tarjetas del Festival) */
+  /* Franja de plumaje: los 8 colores del sombrero */
+  .plumaje-band {
+    height: 4px;
+    background-image: linear-gradient(
+      90deg,
+      var(--color-pluma-magenta) 0 12.5%,
+      var(--color-pluma-amarillo) 12.5% 25%,
+      var(--color-pluma-verde) 25% 37.5%,
+      var(--color-pluma-azul) 37.5% 50%,
+      var(--color-pluma-violeta) 50% 62.5%,
+      var(--color-pluma-naranja) 62.5% 75%,
+      var(--color-pluma-rojo) 75% 87.5%,
+      var(--color-pluma-cian) 87.5% 100%
+    );
+    background-size: 256px 100%;
+    background-repeat: repeat-x;
+  }
+
+  /* Variante con borde "esponjoso" como las plumas */
+  .plumaje-band-soft {
+    height: 10px;
+    -webkit-mask:
+      linear-gradient(#000 0 0) top / 100% 6px no-repeat,
+      radial-gradient(circle 4px at 50% 0, #000 96%, transparent) 0 6px / 8px 4px repeat-x;
+    mask:
+      linear-gradient(#000 0 0) top / 100% 6px no-repeat,
+      radial-gradient(circle 4px at 50% 0, #000 96%, transparent) 0 6px / 8px 4px repeat-x;
+  }
+
+  /* Fleco dorado (borde inferior del cotón) */
+  .fleco {
+    height: 14px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--color-oro) 0 2px,
+      transparent 2px 5px
+    );
+    -webkit-mask-image: linear-gradient(to bottom, #000 20%, transparent);
+    mask-image: linear-gradient(to bottom, #000 20%, transparent);
+    opacity: 0.55;
+  }
+
+  /* Cadena plateada */
+  .cadena {
+    height: 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cellipse cx='7' cy='6' rx='5.6' ry='3.4' fill='none' stroke='%23c9ced6' stroke-width='1.7'/%3E%3Crect x='11' y='4.8' width='14' height='2.4' rx='1.2' fill='%23e8ebf0'/%3E%3C/svg%3E")
+      repeat-x center / 24px 12px;
+  }
+
+  /* Bordado: patrón floral muy sutil en oro */
+  .bordado {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72' fill='none' stroke='%23f2c14e' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M36 26c3-5 9-5 9 0s-6 7-9 10c-3-3-9-5-9-10s6-5 9 0z'/%3E%3Cpath d='M36 36c0 6-3 10-8 12M36 36c0 6 3 10 8 12'/%3E%3Ccircle cx='36' cy='36' r='1.6' fill='%23f2c14e'/%3E%3Cpath d='M0 0c6 2 9 6 9 12M72 0c-6 2-9 6-9 12M0 72c6-2 9-6 9-12M72 72c-6-2-9-6-9-12'/%3E%3C/svg%3E");
+    background-size: 72px 72px;
+  }
+
+  /* Tarjeta base */
+  .card-fest {
+    position: relative;
+    border-radius: 1.25rem;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.02));
+  }
+
+  /* Botones */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    line-height: 1;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-oro {
+    color: #1d1205;
+    background: linear-gradient(180deg, var(--color-oro-claro), var(--color-oro) 45%, #d39b2a);
+    box-shadow: 0 8px 24px -10px rgb(242 193 78 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.55);
+  }
+  .btn-oro:hover:not(:disabled) {
+    box-shadow: 0 10px 30px -8px rgb(242 193 78 / 0.85), inset 0 1px 0 rgb(255 255 255 / 0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    color: #fff;
+    background: rgb(255 255 255 / 0.06);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    backdrop-filter: blur(6px);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.12);
+    border-color: rgb(255 255 255 / 0.3);
+  }
+
+  /* Formularios */
+  .field-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: rgb(255 255 255 / 0.8);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 0.875rem;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    background: rgb(0 0 0 / 0.35);
+    padding: 0.875rem 1rem;
+    color: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  .field-input::placeholder {
+    color: rgb(255 255 255 / 0.35);
+  }
+  .field-input:hover {
+    border-color: rgb(255 255 255 / 0.18);
+  }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--accent, var(--color-oro));
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, var(--color-oro)) 22%, transparent);
+    background: rgb(0 0 0 / 0.5);
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   ANIMACIONES
+   --------------------------------------------------------- */
+
+/* Entrada suave para páginas y bloques */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: enter 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Vaivén de cintas y pañuelos */
+@keyframes sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.sway {
+  transform-origin: top center;
+  animation: sway 3.6s ease-in-out infinite;
+}
+
+@keyframes handkerchief {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+.group:hover .panuelo-sway,
+.panuelo-sway:hover {
+  animation: handkerchief 0.7s ease-in-out infinite;
+}
+
+/* Campanilla que repica */
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}
+.bell-ring {
+  transform-origin: 50% 10%;
+}
+.group:hover .bell-ring,
+.bell-ring:hover,
+.bell-ring-auto {
+  animation: bell-ring 1.1s ease-in-out;
+}
+.bell-ring-auto {
+  transform-origin: 50% 10%;
+  animation-iteration-count: infinite;
+  animation-duration: 3.5s;
+}
+
+/* Flotación sutil */
 @keyframes subtle-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
-
 .animate-float {
   animation: subtle-float 4s ease-in-out infinite;
 }
 
-/* Pausar animación al hacer hover para que no pelee con el transform de Tailwind */
-.group:hover.animate-float {
-  animation-play-state: paused;
-}
-
-/* Animación de Brillo Premium VIP (Para botón de Registro) */
+/* Brillo (botones premium) */
 @keyframes shine {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
 }
-
 .animate-shine {
-  animation: shine 3s ease-in-out infinite;
+  animation: shine 3.5s ease-in-out infinite;
 }
+
+/* Matraca */
+@keyframes matraca-wiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+.animate-matraca {
+  animation: matraca-wiggle 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   MAPA EN VIVO (Leaflet)
+   ========================================================= */
+.leaflet-container {
+  background: #0c0812;
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+.gd-marker {
+  display: block;
+  border-radius: 9999px;
+  background: var(--c);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.55);
+}
+.gd-marker--vivo {
+  animation: gd-pulso 1.8s ease-out infinite;
+}
+@keyframes gd-pulso {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 70%, transparent), 0 2px 10px rgb(0 0 0 / 0.55); }
+  100% { box-shadow: 0 0 0 16px transparent, 0 2px 10px rgb(0 0 0 / 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gd-marker--vivo { animation: none; }
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #1a1222;
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.1);
+}
+.leaflet-container a.leaflet-popup-close-button { color: rgb(255 255 255 / 0.6); }
+.gd-popup strong { display: block; font-size: 14px; margin-bottom: 2px; }
+.gd-popup p { margin: 2px 0 !important; font-size: 12px; color: rgb(255 255 255 / 0.7); }
+.gd-popup .gd-muted { color: rgb(255 255 255 / 0.45); }
+.gd-popup .gd-vivo { color: #6ee7b7; font-weight: 700; }
+.gd-popup-actions { display: flex; gap: 8px; margin-top: 8px; }
+.gd-popup-actions a {
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+}
+.gd-popup-actions a:hover { background: rgb(255 255 255 / 0.16); }
+.leaflet-control-attribution { background: rgb(12 8 18 / 0.75) !important; color: rgb(255 255 255 / 0.5) !important; }
+.leaflet-control-attribution a { color: rgb(255 255 255 / 0.7) !important; }

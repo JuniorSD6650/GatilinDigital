@@ -29,10 +29,12 @@ registerEventos.js
 # Ignorar archivos en public/uploads
 public/uploads/cofrades/*
 public/uploads/reportes/*
+public/uploads/cuadrillas/*
 uploads/*
 
 
 # Excepciones para .gitkeep
 !public/uploads/cofrades/.gitkeep
 !public/uploads/reportes/.gitkeep
+!public/uploads/cuadrillas/.gitkeep
 !uploads/.gitkeep

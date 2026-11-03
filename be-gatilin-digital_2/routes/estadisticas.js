@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const knexConfig = require('../knexfile');
-const knex = require('knex')(knexConfig);
-const auth = require('../middleware/auth');
+const knex = require('../lib/db');
+const { requireAdmin } = require('../middleware/auth');
 
 /**
  * GET /estadisticas
  * Obtiene estadísticas generales del sistema para el dashboard
  */
-router.get('/', auth, async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     // Obtener conteos de todas las tablas principales
     const [
@@ -75,10 +74,7 @@ router.get('/', auth, async (req, res) => {
     res.json(estadisticas);
   } catch (error) {
     console.error('Error obteniendo estadísticas:', error);
-    res.status(500).json({ 
-      error: 'Error al obtener estadísticas',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Error al obtener estadísticas', message: 'Error al obtener estadísticas' });
   }
 });
 

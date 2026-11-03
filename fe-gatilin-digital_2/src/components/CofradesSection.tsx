@@ -1,41 +1,107 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { getCofradesbyCofradia, Cofrade } from '@/services/apis/api-normal';
-import { API_URL } from '@/services/api';
+import { useState, useEffect, useMemo } from 'react';
+import { getCofradesbyCofradia, getFotosCuadrilla, type Cofrade, type FotoCuadrilla } from '@/services/apis/api-normal';
+import { BASE_URL } from '@/services/api';
+import { IconPhone, IconUsers, IconImage, IconSearch, IconX } from './ui/Icons';
+import { readableTextOn, withAlpha, accentOnDark } from '@/lib/color';
 
 interface CofradesSeccionProps {
   cofradiaId: number;
   cofradiaColor: string;
+  cofradiaNombre?: string;
 }
 
-// Función para obtener el año por defecto
+// Año por defecto: de enero a junio se muestra la temporada anterior
 const getDefaultYear = (): number => {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
-  
-  // Si estamos en enero-junio del año siguiente, mostrar el año anterior
-  if (currentMonth <= 6) {
-    return currentYear - 1;
-  }
-  
-  return currentYear;
+  return now.getMonth() + 1 <= 6 ? currentYear - 1 : currentYear;
 };
 
-export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesSeccionProps) {
+const esNinguno = (v?: string | null) => !v || v.trim().toLowerCase() === 'ninguno';
+
+// Es bailante si su personaje o cargo lo indica, o si tiene un personaje asignado
+const esBailante = (c: Cofrade) => {
+  const personaje = c.personaje_cofradia?.toLowerCase() || '';
+  const cargo = c.cargo_cofrade?.toLowerCase() || '';
+  if (personaje.includes('bailant') || cargo.includes('bailant')) return true;
+  return !esNinguno(personaje);
+};
+
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+function Titulo({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="flex items-center gap-2 font-display text-2xl font-semibold text-white">
+        <IconUsers className="w-6 h-6 text-white/50" />
+        Integrantes de la cuadrilla
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+/** Foto grupal de la temporada, o un aviso discreto si aún no hay */
+function FotoGrupal({ foto, anio, nombre, color }: { foto?: FotoCuadrilla; anio: number; nombre?: string; color: string }) {
+  if (!foto) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-white/45">
+        <IconImage className="w-5 h-5 shrink-0" />
+        Aún no hay foto grupal de la cuadrilla para {anio}.
+      </div>
+    );
+  }
+  const src = foto.ruta_foto.startsWith('http') ? foto.ruta_foto : `${BASE_URL}/${foto.ruta_foto}`;
+  return (
+    <figure className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+      <a href={src} target="_blank" rel="noopener noreferrer" className="group relative block" aria-label="Ver foto en tamaño completo">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={`Foto grupal de la cuadrilla ${nombre ?? ''} ${anio}`.trim()}
+          loading="lazy"
+          className="max-h-[520px] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+        />
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px]" style={{ backgroundColor: color }} />
+      </a>
+      <figcaption className="flex items-center justify-between gap-2 px-4 py-2.5 text-xs text-white/55">
+        <span>Cuadrilla {anio}</span>
+        <span className="text-white/35">Toca la foto para ampliarla</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+export default function CofradesSection({ cofradiaId, cofradiaColor, cofradiaNombre }: CofradesSeccionProps) {
   const [cofrades, setCofrades] = useState<Cofrade[]>([]);
+  const [fotos, setFotos] = useState<FotoCuadrilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(getDefaultYear());
   const [tipoSeleccionado, setTipoSeleccionado] = useState<'bailantes' | 'sociales'>('bailantes');
+  const [busqueda, setBusqueda] = useState('');
+
+  const onColor = readableTextOn(cofradiaColor);
+  const ink = accentOnDark(cofradiaColor);
 
   useEffect(() => {
-    const fetchCofrades = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await getCofradesbyCofradia(cofradiaId);
-        setCofrades(data);
+        const [dataCofrades, dataFotos] = await Promise.all([
+          getCofradesbyCofradia(cofradiaId),
+          getFotosCuadrilla(cofradiaId),
+        ]);
+        setCofrades(dataCofrades);
+        setFotos(dataFotos);
+
+        // Si el año por defecto no tiene datos, mostrar el más reciente disponible
+        const anios = new Set([...dataCofrades.map((c) => c.anio), ...dataFotos.map((f) => f.anio)]);
+        if (anios.size > 0 && !anios.has(getDefaultYear())) {
+          setSelectedYear(Math.max(...anios));
+        }
       } catch (err) {
         console.error('Error cargando cofrades:', err);
         setError('No se pudieron cargar los cofrades');
@@ -44,313 +110,203 @@ export default function CofradesSection({ cofradiaId, cofradiaColor }: CofradesS
       }
     };
 
-    if (cofradiaId) {
-      fetchCofrades();
-    }
+    if (cofradiaId) fetchData();
   }, [cofradiaId]);
+
+  const availableYears = useMemo(
+    () =>
+      Array.from(new Set([...cofrades.map((c) => c.anio), ...fotos.map((f) => f.anio)]))
+        .filter((year) => year >= 2025)
+        .sort((a, b) => b - a),
+    [cofrades, fotos]
+  );
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <h3
-          className="text-lg font-bold text-white border-b pb-2"
-          style={{ color: cofradiaColor, borderColor: `${cofradiaColor}40` }}
-        >
-          Integrantes de la Cuadrilla
-        </h3>
-        <div className="flex flex-wrap justify-center gap-3 max-w-6xl mx-auto">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-[calc(50%-0.375rem)] sm:w-[calc(33.333%-0.5rem)] lg:w-[calc(25%-0.5625rem)] bg-white/5 rounded-xl p-3 animate-pulse">
-              <div className="h-20 bg-white/10 rounded-lg mb-2" />
-              <div className="h-3 bg-white/10 rounded mb-1.5" />
-              <div className="h-2 bg-white/10 rounded w-2/3" />
-            </div>
+      <div className="space-y-5">
+        <Titulo />
+        <div className="aspect-[16/7] animate-pulse rounded-2xl bg-white/[0.04]" />
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.04]" />
           ))}
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || (cofrades.length === 0 && fotos.length === 0)) {
     return (
-      <div className="space-y-4">
-        <h3
-          className="text-lg font-bold text-white border-b pb-2"
-          style={{ color: cofradiaColor, borderColor: `${cofradiaColor}40` }}
-        >
-          Integrantes de la Cuadrilla
-        </h3>
-        <div className="text-center py-8 text-gray-400">
-          <p>{error}</p>
-        </div>
+      <div className="space-y-5">
+        <Titulo />
+        <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-white/50">
+          {error ?? 'No hay cofrades registrados en esta cuadrilla'}
+        </p>
       </div>
     );
   }
 
-  if (cofrades.length === 0) {
-    return (
-      <div className="space-y-4">
-        <h3
-          className="text-lg font-bold text-white border-b pb-2"
-          style={{ color: cofradiaColor, borderColor: `${cofradiaColor}40` }}
-        >
-          Integrantes de la Cuadrilla
-        </h3>
-        <div className="text-center py-8 text-gray-400">
-          <p>No hay cofrades registrados en esta cuadrilla</p>
-        </div>
-      </div>
-    );
-  }
+  const fotoDelAno = fotos.find((f) => f.anio === selectedYear);
+  const cofradesDelAno = cofrades.filter((c) => c.anio === selectedYear);
 
-  // Obtener años disponibles (desde 2025 en adelante)
-  const availableYears = Array.from(new Set(cofrades.map(c => c.anio)))
-    .filter(year => year >= 2025)
-    .sort((a, b) => b - a);
+  const bailantes = cofradesDelAno.filter(esBailante);
+  // Sociales: todos los que NO tengan cargo bailante
+  const sociales = cofradesDelAno.filter((c) => !(c.cargo_cofrade?.toLowerCase() || '').includes('bailant'));
 
-  // Filtrar cofrades por año seleccionado
-  const cofradesDelAno = cofrades.filter(c => c.anio === selectedYear);
-
-  // Separar bailantes de los demás
-    const esBailante = (c: Cofrade) => {
-      const personaje = c.personaje_cofradia?.toLowerCase() || '';
-      const cargo = c.cargo_cofrade?.toLowerCase() || '';
-      // Es bailante si:
-      // - personaje_cofradia incluye 'bailant'
-      // - cargo_cofrade incluye 'bailant'
-      // - personaje_cofradia existe y es distinto de 'ninguno'
-      if (personaje.includes('bailant') || cargo.includes('bailant')) return true;
-      if (personaje && personaje !== 'ninguno') return true;
-      return false;
-    };
-
-    // Bailantes: todos los que cumplen la función
-    const bailantes = cofradesDelAno.filter(esBailante);
-
-    // Sociales: todos los que NO tengan cargo bailante
-    const sociales = cofradesDelAno.filter(c => {
-      const cargo = c.cargo_cofrade?.toLowerCase() || '';
-      // Si el cargo NO incluye 'bailant', es social
-      return !cargo.includes('bailant');
-    });
-
-  // Ordenar bailantes alfabéticamente
-  const bailantesOrdenados = bailantes.sort((a, b) => a.nombres_apellidos.localeCompare(b.nombres_apellidos));
-  
-  // Ordenar sociales: primero los que tienen cargo, luego alfabético
-    const socialesOrdenados = sociales.sort((a, b) => {
-    const cargoA = a.cargo_cofrade?.toLowerCase() || 'ninguno';
-    const cargoB = b.cargo_cofrade?.toLowerCase() || 'ninguno';
-    
-    if (cargoA !== 'ninguno' && cargoB === 'ninguno') return -1;
-    if (cargoA === 'ninguno' && cargoB !== 'ninguno') return 1;
-    
+  const bailantesOrdenados = [...bailantes].sort((a, b) => a.nombres_apellidos.localeCompare(b.nombres_apellidos));
+  // Sociales: primero los que tienen cargo, luego alfabético
+  const socialesOrdenados = [...sociales].sort((a, b) => {
+    const conCargoA = !esNinguno(a.cargo_cofrade);
+    const conCargoB = !esNinguno(b.cargo_cofrade);
+    if (conCargoA !== conCargoB) return conCargoA ? -1 : 1;
     return a.nombres_apellidos.localeCompare(b.nombres_apellidos);
   });
 
-  // Seleccionar qué mostrar según la pestaña
-  const cofradesAMostrar = tipoSeleccionado === 'bailantes' ? bailantesOrdenados : socialesOrdenados;
+  // Si solo hay un grupo, se muestra ese aunque la pestaña diga otra cosa
+  const tipoEfectivo =
+    bailantes.length === 0 ? 'sociales' : sociales.length === 0 ? 'bailantes' : tipoSeleccionado;
+  const lista = tipoEfectivo === 'bailantes' ? bailantesOrdenados : socialesOrdenados;
+
+  const q = normalizar(busqueda.trim());
+  const cofradesAMostrar = q
+    ? lista.filter((c) =>
+        normalizar(`${c.nombres_apellidos} ${c.personaje_cofradia ?? ''} ${c.cargo_cofrade ?? ''}`).includes(q)
+      )
+    : lista;
+
+  const pill = (active: boolean) => (active ? { backgroundColor: cofradiaColor, color: onColor } : undefined);
 
   return (
-    <div className="space-y-6">
-      {/* Header con título y filtro de año - CENTRADO */}
-      <div className="flex flex-col items-center gap-4 border-b pb-4" style={{ borderColor: `${cofradiaColor}40` }}>
-        <h3
-          className="text-lg font-bold text-white text-center"
-          style={{ color: cofradiaColor }}
-        >
-          Integrantes de la Cuadrilla
-        </h3>
-
+    <div className="space-y-5">
+      <Titulo>
         {/* Selector de años */}
         {availableYears.length > 1 && (
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Temporada">
             {availableYears.map((year) => (
               <button
                 key={year}
+                type="button"
                 onClick={() => setSelectedYear(year)}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  selectedYear === year
-                    ? 'text-white shadow-lg transform scale-105'
-                    : 'text-gray-400 bg-white/5 hover:bg-white/10'
+                aria-pressed={selectedYear === year}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold tabular-nums transition-all ${
+                  selectedYear === year ? 'shadow-md' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
-                style={
-                  selectedYear === year
-                    ? { backgroundColor: cofradiaColor }
-                    : undefined
-                }
+                style={pill(selectedYear === year)}
               >
                 {year}
               </button>
             ))}
           </div>
         )}
+      </Titulo>
 
-        {/* Selector de tipo: Bailantes / Sociales */}
-        {cofradesDelAno.length > 0 && (bailantes.length > 0 && sociales.length > 0) && (
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={() => setTipoSeleccionado('bailantes')}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all ${
-                tipoSeleccionado === 'bailantes'
-                  ? 'text-white shadow-lg scale-105'
-                  : 'text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10'
-              }`}
-              style={
-                tipoSeleccionado === 'bailantes'
-                  ? { backgroundColor: cofradiaColor }
-                  : undefined
-              }
-            >
-              <div className="text-center">
-                <div className="text-sm md:text-base">Bailantes</div>
-                <div className="text-xs opacity-70">({bailantes.length})</div>
-              </div>
-            </button>
-            <button
-              onClick={() => setTipoSeleccionado('sociales')}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all ${
-                tipoSeleccionado === 'sociales'
-                  ? 'text-white shadow-lg scale-105'
-                  : 'text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10'
-              }`}
-              style={
-                tipoSeleccionado === 'sociales'
-                  ? { backgroundColor: cofradiaColor }
-                  : undefined
-              }
-            >
-              <div className="text-center">
-                <div className="text-sm md:text-base">Sociales</div>
-                <div className="text-xs opacity-70">({sociales.length})</div>
-              </div>
-            </button>
-          </div>
-        )}
-      </div>
+      <FotoGrupal foto={fotoDelAno} anio={selectedYear} nombre={cofradiaNombre} color={cofradiaColor} />
 
-      {/* Mostrar mensaje si no hay cofrades del año seleccionado */}
       {cofradesDelAno.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          <p>No hay cofrades registrados para el año {selectedYear}</p>
-        </div>
-      ) : cofradesAMostrar.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          <p>No hay {tipoSeleccionado} registrados para este año</p>
-        </div>
+        <p className="rounded-2xl border border-dashed border-white/10 py-8 text-center text-sm text-white/50">
+          No hay cofrades registrados para el año {selectedYear}
+        </p>
       ) : (
-        <div className="space-y-3">
-          {/* Grid de cofrades - CENTRADO */}
-          <div className="flex flex-wrap justify-center gap-3 max-w-6xl mx-auto">
-            {cofradesAMostrar.map((cofrade) => (
-              <div
-                key={cofrade.id}
-                className="w-[calc(50%-0.375rem)] sm:w-[calc(33.333%-0.5rem)] lg:w-[calc(25%-0.5625rem)] group bg-gradient-to-br from-neutral-900 to-black rounded-lg overflow-hidden border border-white/5 hover:border-white/20 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                style={{
-                  boxShadow: `0 2px 8px ${cofradiaColor}15`,
-                }}
-              >
-                {/* Foto - MÁS COMPACTA */}
-                <div className="relative h-28 sm:h-32 bg-neutral-800 overflow-hidden">
-                  {cofrade.ruta_foto ? (
-                    <img
-                      src={`${API_URL}/${cofrade.ruta_foto}`}
-                      alt={cofrade.nombres_apellidos}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <img
-                        src="/icons/profile.svg"
-                        alt="Foto de perfil vacía"
-                        className="w-12 h-12 sm:w-16 sm:h-16 object-contain opacity-80"
-                      />
-                    </div>
-                  )}
-                  {/* Cinta de personaje solo si NO es sociales */}
-                  {tipoSeleccionado === 'bailantes' && cofrade.personaje_cofradia && cofrade.personaje_cofradia.toLowerCase() !== 'ninguno' && (
-                    <div
-                      className="absolute left-0 bottom-0 px-2 py-1 bg-black/70 rounded-tr-lg text-[10px] sm:text-xs text-white font-semibold max-w-[80%] truncate shadow-lg"
-                      style={{
-                        borderTopRightRadius: '0.5rem',
-                        fontSize: 'clamp(0.65rem, 1.5vw, 0.85rem)',
-                        zIndex: 2,
-                      }}
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Selector Bailantes / Sociales */}
+            {bailantes.length > 0 && sociales.length > 0 ? (
+              <div className="inline-flex self-start rounded-full border border-white/10 bg-black/30 p-1" role="tablist" aria-label="Tipo de integrante">
+                {(['bailantes', 'sociales'] as const).map((tipo) => {
+                  const active = tipoEfectivo === tipo;
+                  const count = tipo === 'bailantes' ? bailantes.length : sociales.length;
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setTipoSeleccionado(tipo)}
+                      className={`rounded-full px-5 py-2 text-sm font-semibold capitalize transition-all ${active ? 'shadow' : 'text-white/60 hover:text-white'}`}
+                      style={pill(active)}
                     >
-                      {cofrade.personaje_cofradia}
-                    </div>
-                  )}
-                </div>
+                      {tipo} <span className="ml-1 tabular-nums opacity-70">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-white/55">
+                {lista.length} {tipoEfectivo}
+              </p>
+            )}
 
-                {/* Info - MÁS COMPACTA */}
-                <div className="p-2.5 sm:p-3 space-y-1.5 flex flex-col">
-                  <h4
-                    className="font-bold text-white text-xs sm:text-sm md:text-base leading-tight"
-                    style={{
-                      fontSize: 'clamp(0.85rem, 2vw, 1.1rem)',
-                      wordBreak: 'break-word',
-                      whiteSpace: 'normal',
-                      lineHeight: 1.2,
-                      maxHeight: '5.5em',
-                      overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 5,
-                      WebkitBoxOrient: 'vertical',
-                      minHeight: '2.4em',
-                    }}
+            {/* Buscar integrante */}
+            {lista.length > 8 && (
+              <div className="relative sm:w-64">
+                <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+                <input
+                  type="search"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar integrante..."
+                  aria-label="Buscar integrante"
+                  className="field-input !rounded-full !py-2 !pl-9 !pr-9 text-sm [&::-webkit-search-cancel-button]:hidden"
+                />
+                {busqueda && (
+                  <button
+                    type="button"
+                    onClick={() => setBusqueda('')}
+                    aria-label="Limpiar"
+                    className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
                   >
-                    {cofrade.nombres_apellidos}
-                  </h4>
-
-                  {/* Cargo solo si NO es bailantes */}
-                  {tipoSeleccionado === 'sociales' && cofrade.cargo_cofrade && cofrade.cargo_cofrade.toLowerCase() !== 'ninguno' && (
-                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs mt-auto pt-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="w-3 h-3 flex-shrink-0"
-                        style={{ color: cofradiaColor }}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"
-                        />
-                      </svg>
-                      <span className="truncate font-semibold" style={{ color: cofradiaColor, maxWidth: '80%' }}>
-                        {cofrade.cargo_cofrade}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Celular */}
-                  {cofrade.celular && (
-                    <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="w-3 h-3 flex-shrink-0"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
-                        />
-                      </svg>
-                      <span className="truncate">{cofrade.celular}</span>
-                    </div>
-                  )}
-                </div>
+                    <IconX className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-            ))}
-              </div>
-        </div>
+            )}
+          </div>
+
+          {cofradesAMostrar.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-white/10 py-8 text-center text-sm text-white/50">
+              {q ? 'Ningún integrante coincide con tu búsqueda' : `No hay ${tipoEfectivo} registrados para este año`}
+            </p>
+          ) : (
+            <ol className="grid gap-x-3 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              {cofradesAMostrar.map((cofrade, idx) => {
+                const etiqueta =
+                  tipoEfectivo === 'bailantes'
+                    ? (!esNinguno(cofrade.personaje_cofradia) ? cofrade.personaje_cofradia : null)
+                    : (!esNinguno(cofrade.cargo_cofrade) ? cofrade.cargo_cofrade : null);
+
+                return (
+                  <li
+                    key={cofrade.id}
+                    className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 transition-colors hover:border-white/15"
+                  >
+                    <span
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold tabular-nums"
+                      style={{ backgroundColor: withAlpha(ink, 0.14), color: ink }}
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold leading-snug text-white [overflow-wrap:anywhere]">
+                        {cofrade.nombres_apellidos}
+                      </p>
+                      {(etiqueta || cofrade.celular) && (
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                          {etiqueta && <span className="font-semibold" style={{ color: ink }}>{etiqueta}</span>}
+                          {cofrade.celular && (
+                            <a href={`tel:${cofrade.celular}`} className="inline-flex items-center gap-1 text-white/45 hover:text-white">
+                              <IconPhone className="h-3 w-3" />
+                              {cofrade.celular}
+                            </a>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </>
       )}
     </div>
   );

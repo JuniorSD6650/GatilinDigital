@@ -1,286 +1,155 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getEstadisticas, type Estadisticas } from '@/services/apis/api-admin';
+import {
+  IconChurch, IconMask, IconCalendar, IconClipboard, IconNeedle, IconUserPlus, IconBellRing, IconKey,
+  IconAlert, IconArrowRight, IconGlobe, IconSettings,
+} from '@/components/ui/Icons';
+import { LoadingState } from '@/components/admin/AdminUI';
+
+type IconCmp = (p: { className?: string }) => React.ReactElement;
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const [stats, setStats] = useState<Estadisticas | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await getEstadisticas();
+        setStats(data);
+      } catch (err) {
+        console.error('Error cargando estadísticas:', err);
+        setError('Error al cargar las estadísticas');
+      } finally {
+        setLoading(false);
+      }
+    };
     loadStats();
   }, []);
 
-  const loadStats = async () => {
-    try {
-      const data = await getEstadisticas();
-      setStats(data);
-    } catch (err: any) {
-      console.error('Error cargando estadísticas:', err);
-      setError('Error al cargar las estadísticas');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="text-4xl">⏳</div>
-          <p className="text-gray-400">Cargando estadísticas...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Cargando estadísticas..." />;
 
   if (error || !stats) {
     return (
-      <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 text-red-400">
+      <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-300">
+        <IconAlert className="w-5 h-5 shrink-0" />
         {error || 'No se pudieron cargar las estadísticas'}
       </div>
     );
   }
 
+  const cards: { title: string; value: number; icon: IconCmp; color: string; href: string; badge?: number }[] = [
+    { title: 'Cofradías', value: stats.totalCofradias, icon: IconChurch, color: '#4f86ff', href: '/admin/cofradias' },
+    { title: 'Cofrades', value: stats.totalCofrades, icon: IconMask, color: '#19c26b', href: '/admin/cofrades' },
+    { title: 'Eventos', value: stats.totalEventos, icon: IconCalendar, color: '#b45cf0', href: '/admin/eventos' },
+    {
+      title: 'Reportes',
+      value: stats.totalReportes,
+      icon: IconClipboard,
+      color: '#ff7a1a',
+      href: '/admin/reportes',
+      badge: stats.reportesPendientes > 0 ? stats.reportesPendientes : undefined,
+    },
+    { title: 'Bordadurías', value: stats.totalBordadurias, icon: IconNeedle, color: '#f2c14e', href: '/admin/bordadurias' },
+    { title: 'Participantes', value: stats.totalParticipantes, icon: IconUserPlus, color: '#12c7e6', href: '/admin/participantes' },
+    { title: 'Eventos próximos', value: stats.eventosProximos, icon: IconBellRing, color: '#ff1f8f', href: '/admin/eventos' },
+    { title: 'Localizadores', value: stats.totalLocalizadores, icon: IconKey, color: '#2dd4bf', href: '/admin/usuarios' },
+  ];
+
+  const quick: { label: string; icon: IconCmp; href: string }[] = [
+    { label: 'Gestionar cofradías', icon: IconChurch, href: '/admin/cofradias' },
+    { label: 'Gestionar cofrades', icon: IconMask, href: '/admin/cofrades' },
+    { label: 'Gestionar eventos', icon: IconCalendar, href: '/admin/eventos' },
+    { label: 'Ver reportes', icon: IconClipboard, href: '/admin/reportes' },
+    { label: 'Gestionar bordadurías', icon: IconNeedle, href: '/admin/bordadurias' },
+    { label: 'Participantes', icon: IconUserPlus, href: '/admin/participantes' },
+    { label: 'Localizadores', icon: IconKey, href: '/admin/usuarios' },
+    { label: 'Configuración del sitio', icon: IconSettings, href: '/admin/configuracion' },
+    { label: 'Ver sitio público', icon: IconGlobe, href: '/' },
+  ];
+
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
-      {/* Título */}
+    <div className="space-y-8 animate-in">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
-          Bienvenido al Panel de Administración
-        </h2>
-        <p className="text-gray-400">
-          Gestiona las cofradías, eventos y reportes de la festividad
-        </p>
+        <h2 className="text-2xl font-semibold text-white sm:text-3xl">Bienvenido al panel de administración</h2>
+        <p className="mt-1 text-white/55">Gestiona las cofradías, eventos y reportes de la festividad.</p>
       </div>
 
-      {/* Tarjetas de Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        
-        {/* Cofradías */}
-        <StatCard
-          title="Cofradías"
-          value={stats.totalCofradias}
-          icon="⛪"
-          color="from-blue-500 to-cyan-500"
-          onClick={() => router.push('/admin/cofradias')}
-        />
-
-        {/* Cofrades */}
-        <StatCard
-          title="Cofrades"
-          value={stats.totalCofrades}
-          icon="👥"
-          color="from-green-500 to-emerald-500"
-          onClick={() => router.push('/admin/cofrades')}
-        />
-
-        {/* Eventos */}
-        <StatCard
-          title="Eventos"
-          value={stats.totalEventos}
-          icon="📅"
-          color="from-purple-500 to-pink-500"
-          onClick={() => router.push('/admin/eventos')}
-        />
-
-        {/* Reportes */}
-        <StatCard
-          title="Reportes"
-          value={stats.totalReportes}
-          icon="📋"
-          color="from-orange-500 to-red-500"
-          onClick={() => router.push('/admin/reportes')}
-          badge={stats.reportesPendientes > 0 ? stats.reportesPendientes : undefined}
-        />
-
-        {/* Bordadurías */}
-        <StatCard
-          title="Bordadurías"
-          value={stats.totalBordadurias}
-          icon="🧵"
-          color="from-yellow-500 to-amber-500"
-          onClick={() => router.push('/admin/bordadurias')}
-        />
-
-        {/* Participantes */}
-        <StatCard
-          title="Participantes"
-          value={stats.totalParticipantes}
-          icon="🎭"
-          color="from-indigo-500 to-purple-500"
-          onClick={() => router.push('/admin/participantes')}
-        />
-
-        {/* Eventos Próximos */}
-        <StatCard
-          title="Eventos Próximos"
-          value={stats.eventosProximos}
-          icon="🔔"
-          color="from-pink-500 to-rose-500"
-          onClick={() => router.push('/admin/eventos')}
-        />
-
-        {/* Usuarios Localizadores */}
-        <StatCard
-          title="Localizadores"
-          value={stats.totalLocalizadores}
-          icon="🔑"
-          color="from-teal-500 to-cyan-500"
-          onClick={() => router.push('/admin/usuarios')}
-        />
-
-      </div>
-
-      {/* Accesos Rápidos */}
-      <div className="bg-negrito-card border border-white/10 rounded-2xl p-4 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-display font-bold text-white mb-4">
-          Accesos Rápidos
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          
-          <QuickAction
-            label="Gestionar Cofradías"
-            icon="⛪"
-            onClick={() => router.push('/admin/cofradias')}
-          />
-          
-          <QuickAction
-            label="Gestionar Cofrades"
-            icon="👥"
-            onClick={() => router.push('/admin/cofrades')}
-          />
-          
-          <QuickAction
-            label="Gestionar Eventos"
-            icon="📅"
-            onClick={() => router.push('/admin/eventos')}
-          />
-
-          <QuickAction
-            label="Ver Reportes"
-            icon="📋"
-            onClick={() => router.push('/admin/reportes')}
-          />
-          
-          <QuickAction
-            label="Gestionar Bordadurías"
-            icon="🧵"
-            onClick={() => router.push('/admin/bordadurias')}
-          />
-
-          <QuickAction
-            label="Participantes"
-            icon="🎭"
-            onClick={() => router.push('/admin/participantes')}
-          />
-
-          <QuickAction
-            label="Localizadores"
-            icon="🔑"
-            onClick={() => router.push('/admin/usuarios')}
-          />
-          
-          <QuickAction
-            label="Ver Sitio Público"
-            icon="🌐"
-            onClick={() => router.push('/')}
-          />
-
-        </div>
-      </div>
-
-      {/* Resumen de Reportes Pendientes */}
+      {/* Alerta de reportes pendientes */}
       {stats.reportesPendientes > 0 && (
-        <div className="bg-gradient-to-r from-orange-500/10 to-red-600/10 border border-orange-500/20 rounded-2xl p-4 sm:p-6">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <div className="text-2xl sm:text-3xl">⚠️</div>
-            <div className="flex-1">
-              <h4 className="text-base sm:text-lg font-display font-bold text-orange-400 mb-2">
-                Tienes {stats.reportesPendientes} {stats.reportesPendientes === 1 ? 'reporte pendiente' : 'reportes pendientes'}
-              </h4>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                Revisa y gestiona los reportes enviados durante el festival.
-              </p>
-              <button
-                onClick={() => router.push('/admin/reportes')}
-                className="mt-3 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors text-sm font-medium border border-orange-500/30"
-              >
-                Ver Reportes →
-              </button>
-            </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-4 sm:flex-row sm:items-center sm:p-5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-500/20 text-orange-300">
+            <IconAlert className="w-5 h-5" />
+          </span>
+          <div className="flex-1">
+            <p className="font-semibold text-orange-200">
+              Tienes {stats.reportesPendientes} {stats.reportesPendientes === 1 ? 'reporte pendiente' : 'reportes pendientes'}
+            </p>
+            <p className="text-sm text-white/60">Revisa y gestiona los reportes enviados durante el festival.</p>
           </div>
+          <Link
+            href="/admin/reportes"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/20 px-4 py-2 text-sm font-medium text-orange-200 transition-colors hover:bg-orange-500/30"
+          >
+            Ver reportes <IconArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       )}
 
-    </div>
-  );
-}
-
-// Componente de tarjeta de estadística
-function StatCard({ 
-  title, 
-  value, 
-  icon, 
-  color, 
-  onClick,
-  badge
-}: { 
-  title: string; 
-  value: number; 
-  icon: string; 
-  color: string;
-  onClick?: () => void;
-  badge?: number;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`
-        bg-negrito-card border border-white/10 rounded-2xl p-6 
-        ${onClick ? 'cursor-pointer hover:scale-105 hover:border-white/20' : ''}
-        transition-all duration-300 relative
-      `}
-    >
-      {badge !== undefined && badge > 0 && (
-        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-negrito-bg">
-          {badge > 99 ? '99+' : badge}
-        </div>
-      )}
-      <div className="flex items-center justify-between mb-4">
-        <div className={`text-4xl bg-gradient-to-br ${color} bg-clip-text text-transparent`}>
-          {icon}
-        </div>
-        <div className="text-right">
-          <p className="text-3xl font-bold text-white">{value}</p>
-        </div>
+      {/* Estadísticas */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {cards.map((c) => {
+          const Icon = c.icon;
+          return (
+            <Link
+              key={c.title}
+              href={c.href}
+              className="group relative rounded-2xl border border-white/10 bg-negrito-card p-4 transition-all hover:-translate-y-0.5 hover:border-white/20 sm:p-5"
+            >
+              {c.badge !== undefined && (
+                <span className="absolute right-3 top-3 rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                  {c.badge > 99 ? '99+' : c.badge} nuevos
+                </span>
+              )}
+              <span
+                className="grid h-10 w-10 place-items-center rounded-xl"
+                style={{ backgroundColor: `${c.color}1f`, color: c.color }}
+              >
+                <Icon className="w-5 h-5" />
+              </span>
+              <p className="mt-4 text-3xl font-semibold tabular-nums text-white">{c.value}</p>
+              <p className="mt-0.5 flex items-center justify-between text-sm text-white/55">
+                {c.title}
+                <IconArrowRight className="w-4 h-4 opacity-0 transition-opacity group-hover:opacity-100" />
+              </p>
+            </Link>
+          );
+        })}
       </div>
-      <p className="text-gray-400 text-sm font-medium">{title}</p>
-    </div>
-  );
-}
 
-// Componente de acción rápida
-function QuickAction({ 
-  label, 
-  icon, 
-  onClick 
-}: { 
-  label: string; 
-  icon: string; 
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-3 p-4 bg-neutral-900 border border-white/10 rounded-xl hover:bg-neutral-800 hover:border-white/20 transition-all text-left"
-    >
-      <div className="text-2xl">{icon}</div>
-      <span className="text-sm font-medium text-white">{label}</span>
-    </button>
+      {/* Accesos rápidos */}
+      <section className="rounded-2xl border border-white/10 bg-negrito-card p-4 sm:p-6">
+        <h3 className="text-lg font-semibold text-white">Accesos rápidos</h3>
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {quick.map((q) => {
+            const Icon = q.icon;
+            return (
+              <Link
+                key={q.label}
+                href={q.href}
+                className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3.5 text-sm font-medium text-white/85 transition-colors hover:border-white/15 hover:bg-white/[0.05]"
+              >
+                <Icon className="w-5 h-5 text-white/45" />
+                {q.label}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 }

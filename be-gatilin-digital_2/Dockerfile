@@ -21,8 +21,8 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=5000
 
-# curl para el healthcheck de Coolify
-RUN apk add --no-cache curl \
+# curl: healthcheck de Coolify · fuentes: texto de las imágenes de la demo (sharp/SVG)
+RUN apk add --no-cache curl fontconfig ttf-dejavu \
  && addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 --ingroup nodejs backend
 

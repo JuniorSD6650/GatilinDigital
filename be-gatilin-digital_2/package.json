@@ -10,6 +10,7 @@
     "migrate-seed": "node createDatabase.js && npm run migrate && npm run seed && node createAdmin.js",
     "create-admin": "node createAdmin.js",
     "db:setup": "npm run migrate && npm run seed && node createAdmin.js",
+    "db:seed:demo": "node scripts/seedDemo.js",
     "dev": "node --watch server.js"
   },
   "keywords": [],

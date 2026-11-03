@@ -16,6 +16,7 @@ const { sendTemplate, sendXlsx, bulkImport } = require('../lib/excel');
 const { slugUnico } = require('../lib/slug');
 const { coordsDesdeLink, linkDesdeCoords } = require('../lib/geo');
 const push = require('../lib/push');
+const { insertarId, esDuplicado } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -283,7 +284,7 @@ router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) =>
   }
   datos.slug = await slugUnico(knex, 'cofradia', datos.nickname_cofradia);
 
-  const [id] = await knex('cofradia').insert(datos);
+  const id = await insertarId(knex('cofradia').insert(datos));
   await audit(req, 'crear', 'cofradia', id, { nickname_cofradia: datos.nickname_cofradia });
   res.status(201).json({ message: 'Cofradía creada con éxito', id, slug: datos.slug });
 }));
@@ -401,7 +402,7 @@ router.post('/:id/votar', limits.voto, asyncH(async (req, res) => {
       await trx('cofradia').where('id', id).increment('votos', 1);
     });
   } catch (err) {
-    if (err.code !== 'ER_DUP_ENTRY') throw err;
+    if (!esDuplicado(err)) throw err;
     const { votos } = await knex('cofradia').where('id', id).first('votos');
     return res.status(409).json({ error: 'Ya votaste por esta cofradía hoy.', message: 'Ya votaste por esta cofradía hoy.', votos, yaVotaste: true });
   }

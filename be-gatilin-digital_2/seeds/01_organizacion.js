@@ -1,3 +1,4 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> } 
@@ -5,9 +6,7 @@
 exports.seed = async function(knex) {
   // Limpiamos la tabla organizacion (y cofradias por dependencia, si fuera necesario resetear todo)
   // Nota: Si solo quieres limpiar organizacion, asegúrate de que no haya cofradías apuntando a ella o desactiva FK.
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('organizacion').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['organizacion']);
 
   console.log('🌱 Sembrando Organización...');
 
@@ -20,5 +19,6 @@ exports.seed = async function(knex) {
     }
   ]);
   
+  await ajustarSecuencia(knex, 'organizacion');
   console.log('✅ Organización sembrada.');
 };

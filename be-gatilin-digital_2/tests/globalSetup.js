@@ -5,12 +5,15 @@ const knexLib = require('knex');
 
 module.exports = async () => {
   const config = require('../knexfile');
-  const dbName = config.connection.database;
+  const url = new URL(config.connection.connectionString);
+  const dbName = decodeURIComponent(url.pathname.slice(1));
   if (!/test/i.test(dbName)) throw new Error(`Por seguridad, la BD de pruebas debe contener "test" en su nombre (actual: ${dbName})`);
 
-  const admin = knexLib({ client: 'mysql2', connection: { ...config.connection, database: undefined } });
-  await admin.raw(`DROP DATABASE IF EXISTS \`${dbName}\``);
-  await admin.raw(`CREATE DATABASE \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+  const mantenimiento = new URL(url);
+  mantenimiento.pathname = '/postgres';
+  const admin = knexLib({ client: 'pg', connection: { connectionString: mantenimiento.toString() } });
+  await admin.raw('DROP DATABASE IF EXISTS ?? WITH (FORCE)', [dbName]);
+  await admin.raw("CREATE DATABASE ?? ENCODING 'UTF8' TEMPLATE template0", [dbName]);
   await admin.destroy();
 
   const db = knexLib(config);

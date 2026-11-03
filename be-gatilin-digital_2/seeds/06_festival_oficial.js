@@ -1,12 +1,11 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> } 
  */
 exports.seed = async function(knex) {
   // Limpieza de tabla
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('festival_eventos').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['festival_eventos']);
 
   console.log('🌱 Sembrando Festival Oficial (Edición 2025-2026)...');
 
@@ -233,5 +232,6 @@ exports.seed = async function(knex) {
                     e.cofradia.toLowerCase().includes('despedida') ? 'Despedida' : 'Presentación'
   })));
 
+  await ajustarSecuencia(knex, 'festival_eventos');
   console.log('✅ Festival Oficial sembrado.');
 };

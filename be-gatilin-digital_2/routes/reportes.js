@@ -9,6 +9,7 @@ const { z, validate, textoOpc, textoReq, enteroOpc, telefono, paginacionQuery } 
 const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
 const { audit } = require('../lib/audit');
 const { sendXlsx } = require('../lib/excel');
+const { insertarId } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -47,7 +48,7 @@ router.post('/', limits.formulario, imageUpload('foto', 'reportes', { maxMB: 5, 
       return badRequest(res, 'La cofradía seleccionada no existe.');
     }
     // El estado lo decide el equipo, nunca quien reporta
-    const [id] = await knex('reportes').insert({ ...req.body, ruta_foto: req.savedImage || null, estado: 'pendiente' });
+    const id = await insertarId(knex('reportes').insert({ ...req.body, ruta_foto: req.savedImage || null, estado: 'pendiente' }));
     res.status(201).json({ message: 'Reporte creado con éxito', id });
   })
 );

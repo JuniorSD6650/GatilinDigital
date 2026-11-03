@@ -7,6 +7,7 @@ const { z, validate, textoReq, textoOpc, telefono, paginacionQuery } = require('
 const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
 const { audit, diff } = require('../lib/audit');
 const { sendTemplate, bulkImport } = require('../lib/excel');
+const { insertarId } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.post('/bulk-upload', requireAdmin, excelUpload, (req, res) =>
 );
 
 router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) => {
-  const [id] = await knex('bordadurias').insert(req.body);
+  const id = await insertarId(knex('bordadurias').insert(req.body));
   await audit(req, 'crear', 'bordaduria', id, { razon_social: req.body.razon_social });
   res.status(201).json({ message: 'Bordaduría creada con éxito', id });
 }));

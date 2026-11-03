@@ -73,6 +73,10 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ error: 'La petición es demasiado grande.', message: 'La petición es demasiado grande.' });
   }
+  // PostgreSQL rechaza valores con formato inválido (p. ej. /api/cofradia/abc, fechas imposibles)
+  if (['22P02', '22003', '22007', '22008'].includes(err.code)) {
+    return res.status(400).json({ error: 'Parámetro inválido.', message: 'Parámetro inválido.' });
+  }
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'JSON inválido.', message: 'JSON inválido.' });
   }

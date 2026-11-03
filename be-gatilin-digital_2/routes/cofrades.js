@@ -8,6 +8,7 @@ const { z, validate, textoReq, enteroReq, telefono, paginacionQuery } = require(
 const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
 const { audit, diff } = require('../lib/audit');
 const { sendTemplate, sendXlsx, bulkImport } = require('../lib/excel');
+const { insertarId, esDuplicado } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -139,11 +140,11 @@ const limpiarSiFalla = (req, res, next) => {
 router.post('/', imageUpload('foto', 'cofrades', { maxMB: 5, maxSize: 900 }), limpiarSiFalla, validate(crearSchema), asyncH(async (req, res) => {
   if (!(await existeCofradia(req.body.cod_cofradia))) return badRequest(res, 'La cofradía seleccionada no existe.');
   try {
-    const [id] = await knex('cofrades').insert({ ...req.body, ruta_foto: req.savedImage || null });
+    const id = await insertarId(knex('cofrades').insert({ ...req.body, ruta_foto: req.savedImage || null }));
     await audit(req, 'crear', 'cofrade', id, { nombres_apellidos: req.body.nombres_apellidos, cod_cofradia: req.body.cod_cofradia });
     res.status(201).json({ message: 'Cofrade registrado', id });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return badRequest(res, 'Este cofrade ya está registrado en esa cofradía para ese año.');
+    if (esDuplicado(err)) return badRequest(res, 'Este cofrade ya está registrado en esa cofradía para ese año.');
     throw err;
   }
 }));
@@ -160,7 +161,7 @@ router.put('/:id', imageUpload('foto', 'cofrades', { maxMB: 5, maxSize: 900 }), 
   try {
     await knex('cofrades').where('id', cofrade.id).update(updates);
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return badRequest(res, 'Ya existe un cofrade con ese DNI en esa cofradía para ese año.');
+    if (esDuplicado(err)) return badRequest(res, 'Ya existe un cofrade con ese DNI en esa cofradía para ese año.');
     throw err;
   }
   if (req.savedImage && cofrade.ruta_foto) borrarArchivoPublico(cofrade.ruta_foto);

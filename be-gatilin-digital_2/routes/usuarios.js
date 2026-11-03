@@ -12,6 +12,7 @@ const { z, validate, enteroOpc, paginacionQuery } = require('../middleware/valid
 const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
 const { audit } = require('../lib/audit');
 const { sendTemplate, bulkImport } = require('../lib/excel');
+const { insertarId } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -148,13 +149,13 @@ router.post('/', validate(crearSchema), asyncH(async (req, res) => {
   if (!(await existeCofradia(cofradia_id))) return badRequest(res, 'La cofradía seleccionada no existe.');
   if (await knex('usuarios').where('username', user).first('id')) return badRequest(res, 'Ese nombre de usuario ya existe.');
 
-  const [id] = await knex('usuarios').insert({
+  const id = await insertarId(knex('usuarios').insert({
     username: user,
     password: await bcrypt.hash(pass, 10),
     role: 'localizador',
     cofradia_id: cofradia_id || null,
     created_at: knex.fn.now(),
-  });
+  }));
   await audit(req, 'crear', 'usuario', id, { username: user, cofradia_id });
   res.status(201).json({ message: 'Usuario creado exitosamente', userId: id });
 }));

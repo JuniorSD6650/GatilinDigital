@@ -4,6 +4,7 @@ const ExcelJS = require('exceljs');
 const knex = require('./db');
 const { audit } = require('./audit');
 const { badRequest, fail } = require('./http');
+const { esDuplicado, esReferenciaInvalida, esTextoMuyLargo } = require('./dbUtil');
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -61,9 +62,9 @@ const sendXlsx = async (res, { nombreHoja, filename, columns, rows }) => {
 };
 
 const mensajeDb = (err) => {
-  if (err.code === 'ER_DUP_ENTRY') return 'Registro duplicado (ya existe).';
-  if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') return 'Hace referencia a un registro que no existe (revisa el código de cofradía).';
-  if (err.code === 'ER_DATA_TOO_LONG') return 'Algún texto es demasiado largo.';
+  if (esDuplicado(err)) return 'Registro duplicado (ya existe).';
+  if (esReferenciaInvalida(err)) return 'Hace referencia a un registro que no existe (revisa el código de cofradía).';
+  if (esTextoMuyLargo(err)) return 'Algún texto es demasiado largo.';
   return 'No se pudo guardar la fila.';
 };
 

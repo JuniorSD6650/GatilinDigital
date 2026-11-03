@@ -1,7 +1,6 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 exports.seed = async function (knex) {
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('eventos').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['eventos']);
 
   const eventos = [
     { id: 1, fecha: '2025-12-24', tipo_dia: 'Víspera', tipo_evento: 'Concentración', hora: '16:00:00', direccion: 'Local institucional Jr. San Isidro (Calle 9)', of: 'Junta Directiva', tipo_of: 'Cofradía', banda: 'Ninguna', cofradia: 1 },
@@ -224,5 +223,6 @@ exports.seed = async function (knex) {
     banda: e.banda,
     cod_cofradia: e.cofradia
   })));
+  await ajustarSecuencia(knex, 'eventos');
   console.log('✅ Eventos sembrados.');
 };

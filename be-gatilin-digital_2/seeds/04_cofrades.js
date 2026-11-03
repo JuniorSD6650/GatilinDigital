@@ -1,7 +1,6 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 exports.seed = async function (knex) {
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('cofrades').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['cofrades']);
 
   const cofrades = [
     { id: 1, dni: '00000001', nombre: 'Paul Briham Capcha Cárdenas', cargo: 'Presidente', pers: 'Guiador', cofradia: 1 },
@@ -119,5 +118,6 @@ exports.seed = async function (knex) {
     cargo_cofrade: c.cargo,
     cod_cofradia: c.cofradia
   })));
+  await ajustarSecuencia(knex, 'cofrades');
   console.log('✅ Cofrades sembrados.');
 };

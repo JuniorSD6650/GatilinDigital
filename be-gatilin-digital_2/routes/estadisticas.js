@@ -53,8 +53,8 @@ router.get('/', requireAdmin, async (req, res) => {
       
       // Eventos próximos (próximos 30 días desde hoy)
       knex('eventos')
-        .where('fecha', '>=', knex.raw('CURDATE()'))
-        .where('fecha', '<=', knex.raw('DATE_ADD(CURDATE(), INTERVAL 30 DAY)'))
+        .where('fecha', '>=', knex.raw('CURRENT_DATE'))
+        .where('fecha', '<=', knex.raw("CURRENT_DATE + INTERVAL '30 days'"))
         .count('* as count')
         .first()
     ]);

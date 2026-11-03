@@ -7,6 +7,7 @@ const { z, validate, textoReq, textoOpc, url } = require('../middleware/validate
 const { notFound, badRequest, asyncH } = require('../lib/http');
 const { audit, diff } = require('../lib/audit');
 const { sendTemplate, bulkImport } = require('../lib/excel');
+const { insertarId } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ router.post('/bulk-upload', requireAdmin, excelUpload, (req, res) =>
 );
 
 router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) => {
-  const [id] = await knex('organizacion').insert(req.body);
+  const id = await insertarId(knex('organizacion').insert(req.body));
   await audit(req, 'crear', 'organizacion', id, { nombre: req.body.nombre });
   res.status(201).json({ message: 'Organización creada con éxito', id });
 }));

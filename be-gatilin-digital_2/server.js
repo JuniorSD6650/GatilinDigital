@@ -8,7 +8,7 @@ const start = async () => {
   // Verifica la conexión con la base de datos (Knex es la única conexión de la app)
   try {
     await knex.raw('select 1');
-    console.log('Conectado a la base de datos MySQL');
+    console.log('Conectado a la base de datos PostgreSQL');
   } catch (err) {
     console.error('Error conectando a la base de datos:', err.message);
     process.exit(1);

@@ -1,3 +1,4 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> } 
@@ -6,9 +7,7 @@ const bcrypt = require('bcryptjs');
 
 exports.seed = async function(knex) {
   // Limpiamos la tabla usuarios
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('usuarios').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['usuarios']);
 
   console.log('🌱 Sembrando Usuarios...');
 
@@ -26,5 +25,6 @@ exports.seed = async function(knex) {
     cofradia_id: u.cofradia_id
   }))));
 
+  await ajustarSecuencia(knex, 'usuarios');
   console.log('✅ Usuarios sembrados.');
 };

@@ -36,7 +36,7 @@ export default function RegistroPage() {
     setIsSubmitting(true);
 
     try {
-      // MySQL necesita formato 'YYYY-MM-DD HH:MM:SS'
+      // Formato 'YYYY-MM-DD HH:MM:SS' (el backend fija la fecha real del registro)
       const fechaMySQL = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
       await createParticipante({

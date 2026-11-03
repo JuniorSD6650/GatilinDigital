@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM  Gatilin Digital - INICIAR (uso diario)
-REM  Requisito: MySQL encendido (Laragon > Start All).
+REM  Requisito: PostgreSQL encendido y DATABASE_URL configurada en be-gatilin-digital_2\.env
 REM ============================================================
 cd /d "%~dp0"
 

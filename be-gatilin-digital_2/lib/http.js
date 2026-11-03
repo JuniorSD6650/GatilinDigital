@@ -36,14 +36,20 @@ const paginate = async (req, query, { idColumn = 'id', maxPageSize = 100, map = 
   return { data: rows.map(map), total: t, page, pageSize, totalPages: Math.max(1, Math.ceil(t / pageSize)) };
 };
 
+const CON_TILDE = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+const SIN_TILDE = 'aaaaaeeeeiiiiooooouuuunc';
+const sinTildes = (s) => s.replace(/[áàäâãéèëêíìïîóòöôõúùüûñç]/g, (c) => SIN_TILDE[CON_TILDE.indexOf(c)]);
+
 // Escapa los comodines de LIKE
 const likeTerm = (q) => `%${String(q).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
-// Aplica una búsqueda de texto sobre varias columnas
+// Aplica una búsqueda de texto (sin distinguir mayúsculas) sobre varias columnas
 const searchIn = (query, q, columns) => {
   if (!q) return query;
-  const term = likeTerm(q);
-  return query.where((qb) => columns.forEach((c) => qb.orWhere(c, 'like', term)));
+  // Igual que MySQL antes: sin distinguir mayúsculas NI tildes ("cardenas" encuentra "Cárdenas").
+  // translate() es estándar en PostgreSQL: no requiere la extensión unaccent.
+  const term = likeTerm(sinTildes(String(q).toLowerCase()));
+  return query.where((qb) => columns.forEach((c) => qb.orWhereRaw('translate(lower(??), ?, ?) like ?', [c, CON_TILDE, SIN_TILDE, term])));
 };
 
 module.exports = { fail, badRequest, notFound, forbidden, asyncH, paginate, likeTerm, searchIn };

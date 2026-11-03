@@ -1,9 +1,8 @@
+const { vaciarTablas, ajustarSecuencia } = require('../lib/dbUtil');
 const { slugify } = require('../lib/slug');
 
 exports.seed = async function (knex) {
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
-  await knex('cofradia').truncate();
-  await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  await vaciarTablas(knex, ['cofradia']);
 
   const cofradias = [
     {
@@ -42,9 +41,9 @@ exports.seed = async function (knex) {
       nombre_cofradia: 'Cofradía de Negritos Niño Jesús Ingeniero',
       fecha_fundacion: '2008-01-01',
       sede_local: 'Jr. 28 de julio 340',
-      dni_representante: '',
+      dni_representante: null,
       nombre_representante: 'Martin Percy Quintana Rojas',
-      cel_representante: '',
+      cel_representante: null,
       distrito: 'Huánuco',
       color: '#FF5733',
       descripcion: 'Niño Jesús Ingeniero compartiendo fe y tradición huanuqueña.',
@@ -284,7 +283,7 @@ exports.seed = async function (knex) {
       sede_local: 'Jr. Leoncio Prado 1026, Barrio Beaterio, Huánuco',
       dni_representante: null,
       nombre_representante: 'Misael F. Fernández Ávila (Presidente)',
-      cel_representante: '',
+      cel_representante: null,
       distrito: 'Huánuco',
       color: '#FF3385',
       descripcion: 'Negritos Chacón Beaterio presentes en la festividad.',
@@ -327,9 +326,9 @@ exports.seed = async function (knex) {
       nombre_cofradia: 'Cofradía de Negritos Niño Jesús de Seichi Izumi',
       fecha_fundacion: '2010-02-20',
       sede_local: 'JR.SEICHI IZUMI N°445',
-      dni_representante: '',
+      dni_representante: null,
       nombre_representante: 'MANUEL DOMÍNGUEZ PONCE',
-      cel_representante: '936 887 610',
+      cel_representante: null,
       distrito: 'Huánuco',
       color: '#F333FF',
       descripcion: 'Negritos Niño Jesús de Seichi Izumi cultivando nuestra fe.',
@@ -364,5 +363,6 @@ exports.seed = async function (knex) {
   }
 
   await knex('cofradia').insert(cofradias);
+  await ajustarSecuencia(knex, 'cofradia');
   console.log('✅ Cofradía sembrada.');
 };

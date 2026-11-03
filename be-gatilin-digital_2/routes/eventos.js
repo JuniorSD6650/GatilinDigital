@@ -10,6 +10,7 @@ const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/htt
 const { audit, diff } = require('../lib/audit');
 const { sendTemplate, sendXlsx, bulkImport } = require('../lib/excel');
 const { generarICS } = require('../lib/ics');
+const { insertarId } = require('../lib/dbUtil');
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ const EVENTO_COLUMNS = [
   { header: 'Código Cofradía', key: 'cod_cofradia', width: 20 },
 ];
 
-// Fecha de MySQL (objeto Date local) → 'YYYY-MM-DD'
+// Fecha de la base de datos (objeto Date local) → 'YYYY-MM-DD'
 const isoLocal = (d) => (d ? format(new Date(d), 'yyyy-MM-dd') : null);
 const formatear = (e) => ({ ...e, fecha: e.fecha ? format(new Date(e.fecha), 'dd/MM/yyyy') : null, fecha_iso: isoLocal(e.fecha) });
 
@@ -175,7 +176,7 @@ router.get('/:id', asyncH(async (req, res) => {
 
 router.post('/', requireAdmin, validate(crearSchema), asyncH(async (req, res) => {
   if (!(await existeCofradia(req.body.cod_cofradia))) return badRequest(res, 'La cofradía seleccionada no existe.');
-  const [id] = await knex('eventos').insert(req.body);
+  const id = await insertarId(knex('eventos').insert(req.body));
   await audit(req, 'crear', 'evento', id, { fecha: req.body.fecha, cod_cofradia: req.body.cod_cofradia });
   res.status(201).json({ message: 'Evento creado con éxito', id });
 }));

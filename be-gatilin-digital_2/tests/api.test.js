@@ -148,6 +148,7 @@ describe('Datos personales', () => {
 
   test('los errores no exponen detalles internos', async () => {
     const res = await request(app).get('/api/cofradia/abc').set(auth(adminToken));
+    expect(res.status).toBe(400);
     expect(res.body.details).toBeUndefined();
   });
 });

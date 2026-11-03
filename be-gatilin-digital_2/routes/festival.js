@@ -13,14 +13,14 @@ router.get('/', asyncH(async (req, res) => {
   if (req.query.fecha) {
     const parsed = fechaISO.safeParse(req.query.fecha);
     if (!parsed.success) return badRequest(res, 'Fecha inválida (usa AAAA-MM-DD)');
-    query = query.whereRaw('DATE(fecha) = ?', [parsed.data]);
+    query = query.whereRaw('CAST(fecha AS DATE) = ?', [parsed.data]);
   }
   res.json(await query);
 }));
 
 // Días disponibles (filtro de fechas en el front)
 router.get('/dias', asyncH(async (req, res) => {
-  const dias = await knex('festival_eventos').distinct(knex.raw('DATE(fecha) as fecha')).orderBy('fecha', 'asc');
+  const dias = await knex('festival_eventos').distinct(knex.raw('CAST(fecha AS DATE) as fecha')).orderBy('fecha', 'asc');
   res.json(dias.map((d) => ({ fecha: format(new Date(d.fecha), 'yyyy-MM-dd') })));
 }));
 

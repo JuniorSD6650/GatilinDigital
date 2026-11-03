@@ -9,6 +9,7 @@ const { z, validate, textoReq, textoOpc, telefono, email, fechaOpc, paginacionQu
 const { notFound, badRequest, asyncH, paginate, searchIn } = require('../lib/http');
 const { audit, diff } = require('../lib/audit');
 const { sendXlsx } = require('../lib/excel');
+const { insertarId, esDuplicado } = require('../lib/dbUtil');
 
 const router = express.Router();
 const sinArchivos = multer({ limits: { fields: 20, fileSize: 0 } }).none();
@@ -37,16 +38,16 @@ const esquemaSegunRol = (req, res, next) =>
 
 router.post('/', optionalAuth, limiteSiPublico, esquemaSegunRol, asyncH(async (req, res) => {
   try {
-    const [id] = await knex('participantes').insert({
+    const id = await insertarId(knex('participantes').insert({
       ...req.body,
       fecha_registro: format(new Date(), 'yyyy-MM-dd'),
       // El público siempre queda "pendiente": el estado lo decide el equipo
       estado: isAdmin(req) && req.body.estado ? req.body.estado : 'pendiente',
-    });
+    }));
     if (isAdmin(req)) await audit(req, 'crear', 'participante', id, { nombre: req.body.nombre });
     res.status(201).json({ message: 'Participante registrado con éxito', id });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return badRequest(res, 'Ya existe un registro con ese documento.');
+    if (esDuplicado(err)) return badRequest(res, 'Ya existe un registro con ese documento.');
     throw err;
   }
 }));
@@ -102,7 +103,7 @@ router.put('/:id', sinArchivos, validate(editarSchema), asyncH(async (req, res) 
   try {
     await knex('participantes').where('id', participante.id).update(updates);
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return badRequest(res, 'Ya existe un participante con ese documento.');
+    if (esDuplicado(err)) return badRequest(res, 'Ya existe un participante con ese documento.');
     throw err;
   }
   await audit(req, 'editar', 'participante', participante.id, diff(fmt(participante), updates));

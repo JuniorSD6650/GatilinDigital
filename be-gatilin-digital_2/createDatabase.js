@@ -1,52 +1,36 @@
+// ATENCIÓN: BORRA y vuelve a crear la base de datos de DATABASE_URL (solo para instalación local).
+// No se incluye en la imagen Docker. En Coolify la base la crea el servicio de PostgreSQL.
 require('dotenv').config();
 const knex = require('knex');
 
-const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT } = process.env;
-
-// Validamos solo variables obligatorias.
-// NOTA: DB_PASSWORD puede ser vacío, y eso es válido.
-if (!DB_HOST || !DB_USER || DB_NAME === undefined) {
-  console.error("❌ Faltan variables de entorno necesarias (DB_HOST, DB_USER o DB_NAME).");
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error('❌ Falta DATABASE_URL (ej. postgresql://postgres:clave@localhost:5432/gatilin_db).');
   process.exit(1);
 }
 
-console.log("🔧 Configuración de conexión:");
-console.log("Host:", DB_HOST);
-console.log("Usuario:", DB_USER);
-console.log("Password:", DB_PASSWORD === "" ? "(vacío)" : "(oculto)");
-console.log("Base de datos:", DB_NAME);
-console.log("Puerto:", DB_PORT || "(por defecto)");
+const destino = new URL(url);
+const nombre = decodeURIComponent(destino.pathname.slice(1));
+if (!/^[A-Za-z0-9_]+$/.test(nombre)) {
+  console.error(`❌ Nombre de base de datos no válido: "${nombre}"`);
+  process.exit(1);
+}
 
-const db = knex({
-  client: 'mysql2',
-  connection: {
-    host: DB_HOST,
-    user: DB_USER,
-    password: DB_PASSWORD || "", // Aceptar password vacío
-    port: DB_PORT ? Number(DB_PORT) : 3306
-  }
-});
+// Para crear/borrar una base hay que conectarse a otra: la base de mantenimiento "postgres"
+const mantenimiento = new URL(url);
+mantenimiento.pathname = '/postgres';
+const db = knex({ client: 'pg', connection: { connectionString: mantenimiento.toString() } });
 
-async function recreateDatabase() {
+(async () => {
   try {
-    console.log(`🔍 Verificando existencia de "${DB_NAME}"...`);
-
-    const result = await db.raw(`SHOW DATABASES LIKE '${DB_NAME}'`);
-
-    if (result[0].length > 0) {
-      console.log(`⚠️ La base de datos "${DB_NAME}" ya existe. Eliminando...`);
-      await db.raw(`DROP DATABASE ${DB_NAME}`);
-      console.log(`🗑️ Base de datos eliminada.`);
-    }
-
-    await db.raw(`CREATE DATABASE ${DB_NAME}`);
-    console.log(`✅ Base de datos "${DB_NAME}" creada exitosamente.`);
-    
+    console.log(`🔧 Host: ${destino.hostname}:${destino.port || 5432} · Usuario: ${decodeURIComponent(destino.username)} · Base: ${nombre}`);
+    await db.raw('DROP DATABASE IF EXISTS ?? WITH (FORCE)', [nombre]);
+    await db.raw("CREATE DATABASE ?? ENCODING 'UTF8' TEMPLATE template0", [nombre]);
+    console.log(`✅ Base de datos "${nombre}" creada.`);
   } catch (err) {
-    console.error("❌ Error al recrear la base de datos:", err);
+    console.error('❌ Error al recrear la base de datos:', err.message || err.code);
+    process.exitCode = 1;
   } finally {
     await db.destroy();
   }
-}
-
-recreateDatabase();
+})();

@@ -3,7 +3,7 @@ chcp 65001 >nul
 REM ============================================================
 REM  Gatilin Digital - INSTALACION (solo la primera vez)
 REM  ATENCION: borra y recrea la base de datos gatilin_db.
-REM  Requisito: MySQL encendido (Laragon > Start All).
+REM  Requisito: PostgreSQL encendido y DATABASE_URL configurada en be-gatilin-digital_2\.env
 REM ============================================================
 cd /d "%~dp0"
 
@@ -11,7 +11,7 @@ echo.
 echo [1/4] Verificando archivo .env del backend...
 if not exist "be-gatilin-digital_2\.env" (
   copy "be-gatilin-digital_2\.env.example" "be-gatilin-digital_2\.env" >nul
-  echo     Se creo be-gatilin-digital_2\.env - revisa usuario/clave de MySQL si no es root sin clave.
+  echo     Se creo be-gatilin-digital_2\.env - EDITA DATABASE_URL con tu usuario y clave de PostgreSQL.
 ) else (
   echo     OK, ya existe.
 )
@@ -43,8 +43,8 @@ exit /b 0
 :error
 echo.
 echo *** Ocurrio un error. Revisa el mensaje de arriba. ***
-echo     - Esta MySQL encendido? (Laragon ^> Start All)
-echo     - Son correctos DB_USER / DB_PASSWORD en be-gatilin-digital_2\.env?
+echo     - Esta PostgreSQL encendido?
+echo     - Es correcta DATABASE_URL en be-gatilin-digital_2\.env?
 popd
 pause
 exit /b 1

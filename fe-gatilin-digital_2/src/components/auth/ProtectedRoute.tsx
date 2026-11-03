@@ -38,6 +38,8 @@ export default function ProtectedRoute({ children, allowedRole }: ProtectedRoute
       }
     }
 
+    // La sesión vive en localStorage: solo se puede leer en el navegador, después de montar
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsAuthorized(true);
     setIsLoading(false);
   }, [router, allowedRole]);

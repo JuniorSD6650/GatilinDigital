@@ -75,8 +75,8 @@ export default function UsuariosAdminPage() {
       setShowPasswordModal(false);
       setSelectedUsuario(null);
       setNewPassword('');
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al actualizar contraseña');
+    } catch (err) {
+      showAlert('error', (err as Error).message || 'Error al actualizar contraseña');
       console.error(err);
     } finally {
       setSaving(false);

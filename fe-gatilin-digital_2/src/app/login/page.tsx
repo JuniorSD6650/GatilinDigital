@@ -12,7 +12,7 @@ export default function LoginPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/negritos-de-huanuco-baile-tradicional.webp" alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-noche via-noche/70 to-noche/40" />
-        <Cintas className="pointer-events-none absolute -top-2 left-10 h-64 w-28" count={7} />
+        <Cintas className="pointer-events-none absolute -top-2 right-10 h-64 w-28" count={7} />
 
         <div className="flex h-full flex-col justify-between p-12">
           <Link href="/" className="inline-flex items-center gap-3 self-start">

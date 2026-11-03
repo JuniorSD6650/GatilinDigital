@@ -1,7 +1,18 @@
 import { API_URL } from '../api';
 
+/** Datos que el backend guarda en el token */
+interface TokenPayload {
+  id: number;
+  username: string;
+  role: 'admin' | 'localizador';
+  /** Expiración (segundos desde 1970) */
+  exp?: number;
+  cofradiaId?: number;
+  cofradia_nombre?: string;
+}
+
 // Función auxiliar para decodificar JWT (sin verificar firma)
-const decodeJWT = (token: string): any => {
+const decodeJWT = (token: string): TokenPayload | null => {
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');

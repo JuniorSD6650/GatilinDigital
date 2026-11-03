@@ -29,7 +29,7 @@ export default function PageHeader({
 }: PageHeaderProps) {
   return (
     <header
-      className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-terciopelo/60 px-6 pt-6 pb-10 sm:px-10 sm:pb-12 mb-10"
+      className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-terciopelo/60 px-5 pt-5 pb-8 sm:px-10 sm:pt-6 sm:pb-12 mb-6 sm:mb-10"
       style={{ '--accent': accent } as React.CSSProperties}
     >
       {/* Fondo: resplandor del color de la sección + bordado */}
@@ -43,7 +43,7 @@ export default function PageHeader({
       <div aria-hidden className="bordado absolute inset-0 -z-10 opacity-[0.07]" />
 
       {/* Cintas colgando a la derecha */}
-      <Cintas className="pointer-events-none absolute -top-1 right-4 sm:right-10 h-40 w-20 sm:h-52 sm:w-24 opacity-80 sm:opacity-95" count={6} />
+      <Cintas className="pointer-events-none absolute -top-1 right-4 sm:right-10 h-28 w-14 sm:h-52 sm:w-24 opacity-70 sm:opacity-95" count={6} />
 
       <Link
         href={backHref}
@@ -53,18 +53,18 @@ export default function PageHeader({
         {backLabel}
       </Link>
 
-      <div className="mt-8 max-w-2xl pr-16 sm:pr-28">
+      <div className="mt-5 max-w-2xl pr-12 sm:mt-8 sm:pr-28">
         {eyebrow && (
           <p className="eyebrow mb-3 text-[var(--accent)]">
             <Campana className="w-3.5 h-4" ring="none" />
             {eyebrow}
           </p>
         )}
-        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.02] tracking-tight text-white">
+        <h1 className="font-display text-[2.1rem] sm:text-5xl md:text-6xl font-semibold leading-[1.02] tracking-tight text-white">
           {title}
         </h1>
         {description && (
-          <p className="mt-4 text-base sm:text-lg leading-relaxed text-white/70">{description}</p>
+          <p className="mt-3 text-[15px] sm:mt-4 sm:text-lg leading-relaxed text-white/70">{description}</p>
         )}
         {children && <div className="mt-6">{children}</div>}
       </div>

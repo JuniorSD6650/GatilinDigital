@@ -102,7 +102,7 @@ export default function FloatingButtons() {
       ref={reportRef}
       style={position
         ? { left: `${position.x}px`, top: `${position.y}px` }
-        : { bottom: '24px', right: '20px' }
+        : { bottom: 'max(16px, env(safe-area-inset-bottom))', right: '14px' }
       }
       className="fixed z-40 cursor-grab active:cursor-grabbing touch-none select-none"
       onMouseDown={onMouseDown}
@@ -116,17 +116,17 @@ export default function FloatingButtons() {
         className="group relative flex flex-col items-center"
       >
         {/* Matraca */}
-        <span className="relative grid h-16 w-16 sm:h-[72px] sm:w-[72px] place-items-center rounded-full bg-noche/75 ring-1 ring-oro/40 shadow-[0_10px_30px_-8px_rgba(242,193,78,0.55)] backdrop-blur transition-transform group-hover:scale-105 group-active:scale-95">
+        <span className="relative grid h-12 w-12 sm:h-[72px] sm:w-[72px] place-items-center rounded-full bg-noche/75 ring-1 ring-oro/40 shadow-[0_10px_30px_-8px_rgba(242,193,78,0.55)] backdrop-blur transition-transform group-hover:scale-105 group-active:scale-95">
           <span aria-hidden className="absolute inset-0 rounded-full ring-2 ring-oro/30 animate-ping [animation-duration:2.8s]" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/icons/btn-matraca-reporte.svg"
             alt=""
-            className="relative h-12 w-12 sm:h-14 sm:w-14 object-contain animate-matraca"
+            className="relative h-9 w-9 sm:h-14 sm:w-14 object-contain animate-matraca"
             draggable={false}
           />
         </span>
-        <span className="mt-1.5 rounded-full border border-oro/40 bg-noche/85 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-oro backdrop-blur">
+        <span className="mt-1 rounded-full border border-oro/40 bg-noche/85 px-2 py-0.5 text-[9px] sm:mt-1.5 sm:px-2.5 sm:text-[10px] font-bold uppercase tracking-[0.16em] text-oro backdrop-blur">
           Reportar
         </span>
       </Link>

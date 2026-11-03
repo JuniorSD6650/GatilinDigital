@@ -119,8 +119,8 @@ export default function CofradesAdminPage() {
       }
       setShowModal(false);
       loadData();
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al guardar el cofrade');
+    } catch (err) {
+      showAlert('error', (err as Error).message || 'Error al guardar el cofrade');
     } finally {
       setSaving(false);
     }
@@ -137,8 +137,8 @@ export default function CofradesAdminPage() {
           await deleteCofrade(id);
           showAlert('success', 'Cofrade eliminado correctamente');
           loadData();
-        } catch (err: any) {
-          showAlert('error', err.message || 'Error al eliminar el cofrade');
+        } catch (err) {
+          showAlert('error', (err as Error).message || 'Error al eliminar el cofrade');
         }
       }
     });

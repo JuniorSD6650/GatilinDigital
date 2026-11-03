@@ -10,7 +10,8 @@ const DESCRIPCION =
 export const metadata: Metadata = {
   // URL pública del sitio (para las imágenes de vista previa). Defínela en .env.production
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
-  title: "Gatilín Digital · Negritos de Huánuco",
+  // Cada sección define su título; se muestra como "Festival Oficial · Gatilín Digital"
+  title: { default: "Gatilín Digital · Negritos de Huánuco", template: "%s · Gatilín Digital" },
   description: DESCRIPCION,
   manifest: "/manifest.webmanifest",
   applicationName: "Gatilín Digital",

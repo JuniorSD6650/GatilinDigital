@@ -14,8 +14,10 @@ export default function LocalizadorLayout({ children }: { children: React.ReactN
   const [cofradiaNombre, setCofradiaNombre] = useState('');
 
   useEffect(() => {
+    // La sesión vive en localStorage: solo se puede leer en el navegador, después de montar
     const user = getCurrentUser();
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUsername(user.username);
       setCofradiaNombre(user.cofradia_nombre || 'Sin asignar');
     }

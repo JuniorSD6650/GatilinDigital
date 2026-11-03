@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCurrentUser, getAuthHeaders } from '@/services/apis/api-auth';
+import { getCurrentUser, getAuthHeaders, type User } from '@/services/apis/api-auth';
 import { API_URL } from '@/services/api';
 import { apiFetch } from '@/services/http';
 import Image from 'next/image';
@@ -9,7 +9,7 @@ import { IconChurch, IconPin, IconPhone } from '@/components/ui/Icons';
 import CompartirEnVivo from '@/components/localizador/CompartirEnVivo';
 
 export default function LocalizadorPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [ubicacionLink, setUbicacionLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -135,7 +135,7 @@ export default function LocalizadorPage() {
               disabled={loading}
             />
             <p className="text-xs text-gray-500">
-              Pega el enlace de "Compartir ubicación" de Google Maps desde tu celular
+              Pega el enlace de «Compartir ubicación» de Google Maps desde tu celular
             </p>
           </div>
 

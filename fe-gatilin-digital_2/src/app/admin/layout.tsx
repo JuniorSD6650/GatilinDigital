@@ -57,7 +57,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // La sesión vive en localStorage: solo se puede leer en el navegador, después de montar
     const user = getCurrentUser();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user) setUsername(user.username);
   }, []);
 

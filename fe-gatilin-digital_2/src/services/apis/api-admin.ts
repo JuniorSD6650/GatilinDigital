@@ -46,7 +46,7 @@ export const getLocalizadores = async (): Promise<Usuario[]> => {
 
     const data = await response.json();
     
-    return data.map((u: any) => ({
+    return (data as Usuario[]).map((u) => ({
       ...u,
       cofradia_nombre: u.nickname_cofradia || u.cofradia_nombre
     }));

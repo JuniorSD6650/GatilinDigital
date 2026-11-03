@@ -71,7 +71,7 @@ export default function RegistroPage() {
             Inicio
           </Link>
 
-          <p className="eyebrow mt-10 text-oro">Vive la danza</p>
+          <p className="eyebrow mt-8 flex text-oro">Vive la danza</p>
           <h1 className="mt-3 max-w-sm pr-16 font-display text-4xl font-semibold leading-[1.05] text-white sm:text-5xl">
             Baila para el <span className="italic text-oro">Niño Jesús</span>
           </h1>

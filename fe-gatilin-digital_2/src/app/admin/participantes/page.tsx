@@ -56,8 +56,8 @@ export default function ParticipantesAdminPage() {
       }
       setShowModal(false);
       loadData();
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al guardar el participante');
+    } catch (err) {
+      showAlert('error', (err as Error).message || 'Error al guardar el participante');
     } finally {
       setSaving(false);
     }
@@ -74,8 +74,8 @@ export default function ParticipantesAdminPage() {
           await deleteParticipante(id);
           showAlert('success', 'Participante eliminado correctamente');
           loadData();
-        } catch (err: any) {
-          showAlert('error', err.message || 'Error al eliminar el participante');
+        } catch (err) {
+          showAlert('error', (err as Error).message || 'Error al eliminar el participante');
         }
       }
     });

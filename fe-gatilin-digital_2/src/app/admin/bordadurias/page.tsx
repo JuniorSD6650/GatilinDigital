@@ -29,8 +29,8 @@ export default function BorduriasAdminPage() {
     try {
       const data = await getBordadurias();
       setBordadurias(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -65,8 +65,8 @@ export default function BorduriasAdminPage() {
       }
       setShowModal(false);
       loadData();
-    } catch (err: any) {
-      showAlert('error', err.message || 'Error al guardar la bordaduría');
+    } catch (err) {
+      showAlert('error', (err as Error).message || 'Error al guardar la bordaduría');
     } finally {
       setSaving(false);
     }
@@ -83,8 +83,8 @@ export default function BorduriasAdminPage() {
           await deleteBordaduria(id);
           showAlert('success', 'Bordaduría eliminada correctamente');
           loadData();
-        } catch (err: any) {
-          showAlert('error', err.message || 'Error al eliminar la bordaduría');
+        } catch (err) {
+          showAlert('error', (err as Error).message || 'Error al eliminar la bordaduría');
         }
       }
     });

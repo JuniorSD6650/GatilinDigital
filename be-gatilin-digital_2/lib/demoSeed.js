@@ -150,12 +150,29 @@ const UBICACIONES = [
 
 // ---------- Ejecución ----------
 
-const demoYaCargada = async (knex) => {
-  try {
-    return Boolean(await knex('usuarios').where('username', CUENTAS[0].username).first('id'));
-  } catch {
-    return false; // la tabla aún no existe
+// "Vacía" = sin usuarios ni cofradías (o sin tablas todavía)
+const baseDeDatosVacia = async (knex) => {
+  for (const tabla of ['usuarios', 'cofradia']) {
+    if (!(await knex.schema.hasTable(tabla))) continue;
+    const [{ n }] = await knex(tabla).count({ n: '*' });
+    if (Number(n) > 0) return false;
   }
+  return true;
+};
+
+// Borra TODAS las tablas de la base de datos configurada y vuelve a migrar
+const resetearBaseDeDatos = async (knex, { log = console.log } = {}) => {
+  const [filas] = await knex.raw('SHOW FULL TABLES WHERE Table_type = ?', ['BASE TABLE']);
+  const tablas = filas.map((f) => Object.values(f)[0]);
+  log(`🗑️  Eliminando ${tablas.length} tablas...`);
+  await knex.raw('SET FOREIGN_KEY_CHECKS = 0');
+  try {
+    for (const t of tablas) await knex.raw('DROP TABLE IF EXISTS ??', [t]);
+  } finally {
+    await knex.raw('SET FOREIGN_KEY_CHECKS = 1');
+  }
+  log('🔧 Aplicando migraciones...');
+  await knex.migrate.latest({ directory: path.join(ROOT, 'migrations') });
 };
 
 const runDemoSeed = async (knex, { password = DEMO_PASSWORD_DEFAULT, log = console.log } = {}) => {
@@ -294,4 +311,4 @@ const imprimirCredenciales = ({ credenciales, resumen }, log = console.log) => {
   console.table(credenciales);
 };
 
-module.exports = { runDemoSeed, demoYaCargada, imprimirCredenciales, DEMO_PASSWORD_DEFAULT, CUENTAS };
+module.exports = { runDemoSeed, baseDeDatosVacia, resetearBaseDeDatos, imprimirCredenciales, DEMO_PASSWORD_DEFAULT, CUENTAS };

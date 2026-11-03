@@ -1,0 +1,13 @@
+{
+  "name": "gatilin-digital",
+  "private": true,
+  "description": "Gatilin Digital: web (Next.js export) + API (Express) servidas por un solo servidor",
+  "scripts": {
+    "install:all": "npm --prefix be-gatilin-digital_2 install && npm --prefix fe-gatilin-digital_2 install",
+    "build": "npm --prefix fe-gatilin-digital_2 run build",
+    "start": "npm --prefix be-gatilin-digital_2 start",
+    "db:setup": "npm --prefix be-gatilin-digital_2 run db:setup",
+    "db:seed:demo": "npm --prefix be-gatilin-digital_2 run db:seed:demo",
+    "db:reset": "npm --prefix be-gatilin-digital_2 run db:reset"
+  }
+}

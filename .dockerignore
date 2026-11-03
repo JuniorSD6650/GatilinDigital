@@ -1,0 +1,44 @@
+# Dependencias y builds locales (se regeneran dentro de la imagen)
+**/node_modules
+**/.next
+**/out
+**/build
+**/coverage
+**/*.tsbuildinfo
+fe-gatilin-digital_2/next-env.d.ts
+
+# Variables de entorno: se configuran en Coolify, nunca dentro de la imagen
+**/.env
+**/.env.*
+
+# Backend: pruebas, scripts peligrosos y archivos subidos
+be-gatilin-digital_2/tests
+be-gatilin-digital_2/createDatabase.js
+be-gatilin-digital_2/uploads
+be-gatilin-digital_2/public/uploads/**
+!be-gatilin-digital_2/public/uploads/**/.gitkeep
+be-gatilin-digital_2/cofrades.json
+be-gatilin-digital_2/eventos.json
+be-gatilin-digital_2/registerCofrades.js
+be-gatilin-digital_2/registerEventos.js
+**/*.sql
+**/*.sqlite
+
+# Frontend: herramientas de desarrollo
+fe-gatilin-digital_2/eslint.config.mjs
+fe-gatilin-digital_2/.vercel
+
+# Control de versiones / editores / SO / documentación / scripts de Windows
+.git
+**/.gitignore
+**/.vscode
+**/.idea
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/*.md
+*.bat
+
+# Archivos Docker
+Dockerfile
+.dockerignore

@@ -1,4 +1,6 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
@@ -16,7 +18,16 @@ if (isProd && PLACEHOLDERS.includes(jwtSecret)) {
 }
 
 const port = Number(process.env.PORT) || 5000;
-const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+// URL pública única de la app (web + API en el mismo dominio), p. ej. https://gatilin.sdcode.tech.
+// Sirve de valor por defecto para CORS_ORIGIN, FRONTEND_URL y PUBLIC_API_URL.
+const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+
+// Carpeta del frontend compilado (next build -> out/). Si existe, este mismo
+// servidor sirve la web: un solo proceso, puerto y dominio.
+const frontendDirPorDefecto = path.join(__dirname, '..', '..', 'fe-gatilin-digital_2', 'out');
+const frontendDir = process.env.FRONTEND_DIR || (fs.existsSync(frontendDirPorDefecto) ? frontendDirPorDefecto : '');
+
+const corsOrigins = (process.env.CORS_ORIGIN || appUrl || 'http://localhost:3000')
   .split(',')
   .map((o) => o.trim().replace(/\/$/, ''))
   .filter(Boolean);
@@ -29,9 +40,11 @@ module.exports = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   corsOrigins,
   // URL pública del frontend (enlaces para compartir y redirecciones)
-  frontendUrl: (process.env.FRONTEND_URL || corsOrigins[0]).replace(/\/$/, ''),
+  frontendUrl: (process.env.FRONTEND_URL || appUrl || corsOrigins[0]).replace(/\/$/, ''),
   // URL pública de este backend (imágenes en vistas previas de WhatsApp)
-  publicApiUrl: (process.env.PUBLIC_API_URL || `http://localhost:${port}`).replace(/\/$/, ''),
+  publicApiUrl: (process.env.PUBLIC_API_URL || appUrl || `http://localhost:${port}`).replace(/\/$/, ''),
+  appUrl,
+  frontendDir,
   // Detrás de un proxy (Nginx, cPanel...) la IP real llega en X-Forwarded-For
   trustProxy: process.env.TRUST_PROXY ?? (isProd ? '1' : '0'),
   vapid: {

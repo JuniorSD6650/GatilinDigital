@@ -1,4 +1,4 @@
-import { API_URL, BASE_URL } from '../api';
+import { API_URL, absoluteUrl } from '../api';
 import { getDeviceId } from '@/lib/device';
 
 // --- SECCIÓN FESTIVAL (Organizaciones) ---
@@ -142,7 +142,7 @@ export const getCofradiaBySlug = async (slug: string): Promise<CofradiaDetalle |
 };
 
 /** Enlace para compartir: el backend añade la vista previa (Open Graph) y redirige a la página */
-export const shareUrlCofradia = (c: { slug?: string | null; id: number }) => `${BASE_URL}/share/cofradia/${encodeURIComponent(c.slug || String(c.id))}`;
+export const shareUrlCofradia = (c: { slug?: string | null; id: number }) => absoluteUrl(`/share/cofradia/${encodeURIComponent(c.slug || String(c.id))}`);
 export const pageUrlCofradia = (c: { slug?: string | null; id: number }) =>
   c.slug ? `/cofradia?slug=${encodeURIComponent(c.slug)}` : `/sigueteo?cofradia=${c.id}`;
 

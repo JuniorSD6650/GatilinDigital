@@ -11,6 +11,7 @@
     "create-admin": "node createAdmin.js",
     "db:setup": "npm run migrate && npm run seed && node createAdmin.js",
     "db:seed:demo": "node scripts/seedDemo.js",
+    "db:reset": "node scripts/dbReset.js",
     "dev": "node --watch server.js"
   },
   "keywords": [],

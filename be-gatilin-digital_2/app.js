@@ -7,6 +7,7 @@ const config = require('./lib/config');
 const limits = require('./middleware/rateLimits');
 const routes = require('./routes');
 const shareRoutes = require('./routes/share');
+const frontend = require('./lib/frontend');
 
 const app = express();
 
@@ -14,15 +15,18 @@ app.disable('x-powered-by');
 // Necesario para leer la IP real detrás de un proxy (rate limit, votos, bitácora)
 app.set('trust proxy', /^\d+$/.test(String(config.trustProxy)) ? Number(config.trustProxy) : config.trustProxy);
 
-// Cabeceras de seguridad. Las imágenes se sirven a otro origen (el frontend),
-// por eso la política de recursos es "cross-origin".
+// Cabeceras de seguridad. Las imágenes pueden servirse a otro origen (frontend
+// en desarrollo), por eso la política de recursos es "cross-origin".
+// La CSP estricta solo aplica a la API (abajo): la web necesita sus scripts.
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    // La API solo devuelve JSON/archivos: no necesita cargar nada
-    contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    contentSecurityPolicy: false,
   })
 );
+// La API solo devuelve JSON/archivos: no necesita cargar nada
+const cspApi = helmet.contentSecurityPolicy({ useDefaults: false, directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } });
+app.use(['/api', '/uploads'], cspApi);
 
 app.use(
   cors({
@@ -59,6 +63,9 @@ app.use('/api', limits.general, routes);
 
 // 404 de la API
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada', message: 'Ruta no encontrada' }));
+
+// Web (frontend Next.js exportado): mismo servidor, puerto y dominio que la API
+if (config.frontendDir) app.use(frontend(config.frontendDir));
 
 // Manejador global de errores: nunca expone detalles internos al cliente
 // eslint-disable-next-line no-unused-vars

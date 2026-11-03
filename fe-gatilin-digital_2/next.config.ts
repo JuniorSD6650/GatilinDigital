@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
+// Export estático (carpeta out/): el backend Express lo sirve junto a /api
+// en un solo servidor y dominio.
 const nextConfig: NextConfig = {
-  // Docker/Coolify usa NEXT_OUTPUT=standalone (servidor Node). Por defecto se
-  // mantiene el export estático (carpeta out/) para hosting estático.
-  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : 'export',
+  output: 'export',
   images: { unoptimized: true },
   reactCompiler: true,
 };
